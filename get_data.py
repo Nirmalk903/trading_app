@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 
 @lru_cache()
 @retry(wait=wait_random(min=0.1, max=1))
-def fetch_data(symbol):
+def fetch_options_data(symbol):
     symbol = symbol.upper()
     symbol_type = 'indices' if symbol in ['NIFTY','BANKNIFTY','MIDCPNIFTY','FINNIFTY'] else 'equities'
     url = f"https://www.nseindia.com/api/option-chain-{symbol_type}?symbol={symbol}"
@@ -28,7 +28,7 @@ def fetch_data(symbol):
 def fetch_and_save_options_chain(symbol):
     symbol = symbol.upper()
     print(f'printing option chain for {symbol}')
-    data = fetch_data(symbol)
+    data = fetch_options_data(symbol)
     dates = pd.to_datetime(data.loc['expiryDates','records'])
     max_expiry = dates[0]+timedelta(days=90)
     expiry = [i.strftime('%d-%b-%Y') for i in dates if dates[0] <= i <= max_expiry]
