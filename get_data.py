@@ -69,3 +69,8 @@ def fetch_and_save_options_chain(symbol):
         # OptionChain.to_csv(f'{symbol}_OptionChain.csv',index=False)
         OptionChain.to_json(f'{symbol}_OptionChain.json',orient='records')
     return f'Option Chain Saved'
+
+def enrich_option_chain(symbol):
+    symbol = symbol.upper()
+    print(f'Enriching option chain for {symbol}')
+    
