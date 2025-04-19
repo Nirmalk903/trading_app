@@ -2,7 +2,7 @@
 import pandas as pd
 import requests
 from requests.adapters import HTTPAdapter
-from tenacity import retry, stop_after_attempt, stop_after_delay, wait_fixed, wait_random
+from tenacity import retry, stop_after_attempt, stop_after_delay, wait_fixed, wait_random, retry
 from functools import lru_cache
 from datetime import datetime, timedelta
 from Options_Utility import atm_strike, time_to_expiry
