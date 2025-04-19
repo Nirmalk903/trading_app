@@ -1,7 +1,6 @@
 import pandas as pd
 import numpy as np
 import requests
-from requests.adapters import HTTPAdapter
 from tenacity import retry, stop_after_attempt, stop_after_delay, wait_fixed, wait_random, retry
 from functools import lru_cache
 from datetime import datetime, timedelta
@@ -11,75 +10,63 @@ from black_scholes_functions import *
 from json import JSONDecodeError
 import json
 import time
-
+import os
 
 # Function to fetch options data from NSE website with retry logic
 
-# @lru_cache()
-# @retry(wait=wait_random(min=0.1, max=1))
-# def fetch_options_data(symbol):
-#     symbol = symbol.upper()
-#     symbol_type = 'indices' if symbol in ['NIFTY','BANKNIFTY','MIDCPNIFTY','FINNIFTY'] else 'equities'
-#     url = f"https://www.nseindia.com/api/option-chain-{symbol_type}?symbol={symbol}"
-#     headers = {'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36',
-#                 'accept-encoding': 'gzip, deflate, br, zstd',
-#                 'accept-language': 'en-US,en;q=0.9',
-#                 'accept': '*/*'}
-#     session = requests.Session()
-#     request = session.get(url, headers=headers)
-#     print(request.status_code)
-#     response = session.get(url, headers=headers, cookies=dict(request.cookies))
+@lru_cache()
+@retry(wait=wait_random(min=0.1, max=1))
+def fetch_options_data(symbol):
+    symbol = symbol.upper()
+    symbol_type = 'indices' if symbol in ['NIFTY','BANKNIFTY','MIDCPNIFTY','FINNIFTY'] else 'equities'
+    url = f"https://www.nseindia.com/api/option-chain-{symbol_type}?symbol={symbol}"
+    headers = {'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36',
+                'accept-encoding': 'gzip, deflate, br, zstd',
+                'accept-language': 'en-US,en;q=0.9',
+                'accept': '*/*'}
+    session = requests.Session()
+    request = session.get(url, headers=headers)
+    print(request.status_code)
+    response = session.get(url, headers=headers, cookies=dict(request.cookies))
     
-#     return pd.DataFrame(response.json())
+    return pd.DataFrame(response.json())
 
 # Alternative function to fetch options data from NSE Website
 
 @lru_cache()
 def fetch_live_options_data(symbol):
-
     symbol = symbol.upper()
-    symbol_type = 'indices' if symbol in ['NIFTY','BANKNIFTY','MIDCPNIFTY','FINNIFTY'] else 'equities'
+    symbol_type = 'indices' if symbol in ['NIFTY', 'BANKNIFTY', 'MIDCPNIFTY', 'FINNIFTY'] else 'equities'
     url = f"https://www.nseindia.com/api/option-chain-{symbol_type}?symbol={symbol}"
     
     headers = {
-                'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36',
-                'accept-encoding': 'gzip, deflate, br, zstd',
-                'accept-language': 'en-US,en;q=0.9',
-                'accept': '*/*'
-        }
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36',
+        'accept-encoding': 'gzip, deflate, br, zstd',
+        'accept-language': 'en-US,en;q=0.9',
+        'accept': '*/*'
+    }
                 
     session = requests.Session()
     while True:
-        request= session.get(url,headers=headers)
-        if request.status_code==200:
-            # print(f"Success! Status code 200 received. {symbol} saved")
+        request = session.get(url, headers=headers)
+        if request.status_code == 200:
             cookies = dict(request.cookies)
             break
         else:
-            # print(f"Received status code {request.status_code}. Retrying...")
-            time.sleep(0.5)  # Wait for 5 seconds before retrying
-    # cookies = dict(request.cookies)
+            time.sleep(0.5)  # Wait for 0.5 seconds before retrying
+
     while True:
-        response = session.get(url,headers=headers,cookies=cookies)
-        if response.status_code==200:
+        response = session.get(url, headers=headers, cookies=cookies)
+        if response.status_code == 200:
             print(f"Success! Status code 200 received. {symbol} saved")
             break
         else:
-            # print(f"Receied status code {response.status_code}. Retrying...")
             time.sleep(0.5)
-    # response_text = response.text
-    
+
     df = response.json()
-    df.to_csv(f'{symbol}_options_data.csv',index=False)
+    # df.to_csv(f'{symbol}_options_data.csv', index=False)
     return pd.DataFrame(df)
 
-# print(fetch_live_options_data.cache_info())
-fetch_live_options_data.cache_clear()
-
-
-df = fetch_live_options_data('NIFTY')
-# df = fetch_options_data('NIFTY')
-df.head()
 
 def fetch_and_save_options_chain(symbol):
     symbol = symbol.upper()
@@ -122,14 +109,13 @@ def fetch_and_save_options_chain(symbol):
             ls.append(optdata)
         OptionChain = pd.DataFrame(ls)
         # del ls
-           
-        # OptionChain.to_csv(f'{symbol}_OptionChain.csv',index=False)
-        OptionChain.to_json(f'{symbol}_OptionChain.json',orient='records')
+        new_dir = f'./OptionChainJSON'
+        os.makedirs(new_dir, exist_ok=True)
+        file_path = os.path.join(new_dir, f'{symbol}_OptionChain.json')
+        OptionChain.to_json(file_path,orient='records')
     return f'Option Chain Saved'
 
-
-fetch_and_save_options_chain('NIFTY')
-
+fetch_and_save_options_chain('reliance')
 # def enrich_option_chain(symbol):
 #     symbol = symbol.upper()
 #     print(f'Enriching option chain for {symbol}')
