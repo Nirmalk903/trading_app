@@ -65,8 +65,8 @@ def fetch_live_options_data(symbol):
         else:
             # print(f"Receied status code {response.status_code}. Retrying...")
             time.sleep(0.5)
-    response_text = response.text
-    print(response_text)
+    # response_text = response.text
+    
     df = response.json()
     df.to_csv(f'{symbol}_options_data.csv',index=False)
     return pd.DataFrame(df)
