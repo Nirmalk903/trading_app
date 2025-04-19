@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from Options_Utility import atm_strike, time_to_expiry
 from Options_Utility import highlight_rows  # Placeholder for future implementation
 from black_scholes_functions import *
-
+import json
 
 
 
@@ -29,7 +29,8 @@ def fetch_options_data(symbol):
     
     return pd.DataFrame(response.json())
 
-
+df = fetch_options_data('NIFTY')
+df.head()
 
 def fetch_and_save_options_chain(symbol):
     symbol = symbol.upper()
@@ -76,7 +77,10 @@ def fetch_and_save_options_chain(symbol):
         OptionChain.to_json(f'{symbol}_OptionChain.json',orient='records')
     return f'Option Chain Saved'
 
-def enrich_option_chain(symbol):
-    symbol = symbol.upper()
-    print(f'Enriching option chain for {symbol}')
+
+fetch_and_save_options_chain('NIFTY')
+
+# def enrich_option_chain(symbol):
+#     symbol = symbol.upper()
+#     print(f'Enriching option chain for {symbol}')
     
