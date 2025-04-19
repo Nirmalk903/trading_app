@@ -1,5 +1,6 @@
 
 import pandas as pd
+import numpy as np
 import requests
 from requests.adapters import HTTPAdapter
 from tenacity import retry, stop_after_attempt, stop_after_delay, wait_fixed, wait_random, retry
@@ -8,10 +9,12 @@ from datetime import datetime, timedelta
 from Options_Utility import atm_strike, time_to_expiry
 from Options_Utility import highlight_rows  # Placeholder for future implementation
 from black_scholes_functions import *
+from json import JSONDecodeError
 import json
+import time
 
 
-
+# Function to fetch options data from NSE website with retry logic
 
 @lru_cache()
 @retry(wait=wait_random(min=0.1, max=1))
@@ -25,17 +28,62 @@ def fetch_options_data(symbol):
                 'accept': '*/*'}
     session = requests.Session()
     request = session.get(url, headers=headers)
+    print(request.status_code)
     response = session.get(url, headers=headers, cookies=dict(request.cookies))
     
     return pd.DataFrame(response.json())
 
-df = fetch_options_data('NIFTY')
+# Alternative function to fetch options data from NSE Website
+
+@lru_cache()
+def fetch_live_options_data(symbol):
+    symbol = symbol.upper()
+    symbol_type = 'indices' if symbol in ['NIFTY','BANKNIFTY','MIDCPNIFTY','FINNIFTY'] else 'equities'
+    url = f"https://www.nseindia.com/api/option-chain-{symbol_type}?symbol={symbol}"
+    
+    headers = {'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36',
+                'accept-encoding': 'gzip, deflate, br, zstd',
+                'accept-language': 'en-US,en;q=0.9',
+                'accept': '*/*'}
+                
+    session = requests.Session()
+    while True:
+        request= session.get(url,headers=headers)
+        if request.status_code==200:
+            # print(f"Success! Status code 200 received. {symbol} saved")
+            cookies = dict(request.cookies)
+            break
+        else:
+            # print(f"Received status code {request.status_code}. Retrying...")
+            time.sleep(0.5)  # Wait for 5 seconds before retrying
+    # cookies = dict(request.cookies)
+    while True:
+        response = session.get(url,headers=headers,cookies=cookies)
+        if response.status_code==200:
+            print(f"Success! Status code 200 received. {symbol} saved")
+            break
+        else:
+            # print(f"Receied status code {response.status_code}. Retrying...")
+            time.sleep(0.5)
+    response_text = response.text
+    print(response_text)
+    df = response.json()
+    df.to_csv(f'{symbol}_options_data.csv',index=False)
+    return pd.DataFrame(df)
+
+# print(fetch_live_options_data.cache_info())
+fetch_live_options_data.cache_clear()
+
+
+df = fetch_live_options_data('NIFTY')
+# df = fetch_options_data('NIFTY')
 df.head()
 
 def fetch_and_save_options_chain(symbol):
     symbol = symbol.upper()
     print(f'printing option chain for {symbol}')
-    data = fetch_options_data(symbol)
+    # data = fetch_options_data(symbol)
+    data = fetch_live_options_data(symbol)
     dates = pd.to_datetime(data.loc['expiryDates','records'])
     max_expiry = dates[0]+timedelta(days=90)
     expiry = [i.strftime('%d-%b-%Y') for i in dates if dates[0] <= i <= max_expiry]
