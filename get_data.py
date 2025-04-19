@@ -5,6 +5,12 @@ from requests.adapters import HTTPAdapter
 from tenacity import retry, stop_after_attempt, stop_after_delay, wait_fixed, wait_random
 from functools import lru_cache
 from datetime import datetime, timedelta
+from Options_Utility import atm_strike, time_to_expiry
+from Options_Utility import highlight_rows  # Placeholder for future implementation
+from black_scholes_functions import *
+
+
+
 
 
 @lru_cache()
