@@ -1,4 +1,3 @@
-
 import pandas as pd
 import numpy as np
 import requests
@@ -16,35 +15,38 @@ import time
 
 # Function to fetch options data from NSE website with retry logic
 
-@lru_cache()
-@retry(wait=wait_random(min=0.1, max=1))
-def fetch_options_data(symbol):
-    symbol = symbol.upper()
-    symbol_type = 'indices' if symbol in ['NIFTY','BANKNIFTY','MIDCPNIFTY','FINNIFTY'] else 'equities'
-    url = f"https://www.nseindia.com/api/option-chain-{symbol_type}?symbol={symbol}"
-    headers = {'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36',
-                'accept-encoding': 'gzip, deflate, br, zstd',
-                'accept-language': 'en-US,en;q=0.9',
-                'accept': '*/*'}
-    session = requests.Session()
-    request = session.get(url, headers=headers)
-    print(request.status_code)
-    response = session.get(url, headers=headers, cookies=dict(request.cookies))
+# @lru_cache()
+# @retry(wait=wait_random(min=0.1, max=1))
+# def fetch_options_data(symbol):
+#     symbol = symbol.upper()
+#     symbol_type = 'indices' if symbol in ['NIFTY','BANKNIFTY','MIDCPNIFTY','FINNIFTY'] else 'equities'
+#     url = f"https://www.nseindia.com/api/option-chain-{symbol_type}?symbol={symbol}"
+#     headers = {'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36',
+#                 'accept-encoding': 'gzip, deflate, br, zstd',
+#                 'accept-language': 'en-US,en;q=0.9',
+#                 'accept': '*/*'}
+#     session = requests.Session()
+#     request = session.get(url, headers=headers)
+#     print(request.status_code)
+#     response = session.get(url, headers=headers, cookies=dict(request.cookies))
     
-    return pd.DataFrame(response.json())
+#     return pd.DataFrame(response.json())
 
 # Alternative function to fetch options data from NSE Website
 
 @lru_cache()
 def fetch_live_options_data(symbol):
+
     symbol = symbol.upper()
     symbol_type = 'indices' if symbol in ['NIFTY','BANKNIFTY','MIDCPNIFTY','FINNIFTY'] else 'equities'
     url = f"https://www.nseindia.com/api/option-chain-{symbol_type}?symbol={symbol}"
     
-    headers = {'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36',
+    headers = {
+                'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36',
                 'accept-encoding': 'gzip, deflate, br, zstd',
                 'accept-language': 'en-US,en;q=0.9',
-                'accept': '*/*'}
+                'accept': '*/*'
+        }
                 
     session = requests.Session()
     while True:
