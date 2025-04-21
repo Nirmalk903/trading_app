@@ -118,8 +118,39 @@ def fetch_and_save_options_chain(symbol):
 # Function to enrich option chain with additional data
 
 def enrich_option_chain(symbol):
-    print(f'Enriching option chain for {symbol}')
-    # Load the option chain data from JSON file
     symbol = symbol.upper()
     print(f'Enriching option chain for {symbol}')
-    
+    file_name = f'{symbol}_OptionChain.json'
+    file_path = os.path.join('./OptionChainJSON', file_name)
+    chain = pd.read_json(file_path, orient='records')
+    chain['Expiry'] = pd.to_datetime(chain['Expiry'])
+    # Add implied volatility to the chain
+    call_iv = []
+    put_iv = []
+    for i in range(len(chain)):
+        object1 = Implied_Vol(spot  = 2000, strike=chain['strike_price'][i], risk_free_rate=0.1, time_to_expiry=time_to_expiry(chain['Expiry'][i]),volatility=1)
+        if chain['call_ltp'][i] > 0:
+            call_iv.append(object1.newton_iv(chain['call_ltp'][i]))
+        else:
+            call_iv.append(0)
+    chain['call_iv'] = call_iv
+        # object2 = Implied_Vol(chain['strike_price'][i], chain['put_ltp'][i], 0.01, 0, time_to_expiry(chain['Expiry'][i]))
+        # if chain['put_ltp'][i] > 0:
+        #     put_iv.append(object2.newton_iv(putprice=chain['put_ltp'][i]))
+        # else:
+        #     put_iv.append(0)
+        # chain['put_iv'] = put_iv
+    return chain
+
+
+chain = enrich_option_chain('hdfcbank')
+chain.head()
+
+# data
+chain['tau'] = chain['Expiry'].apply(time_to_expiry)
+
+
+ex= chain['Expiry'][0].year
+ex
+
+time_to_expiry(ex)

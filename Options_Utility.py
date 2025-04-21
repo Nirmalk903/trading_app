@@ -1,7 +1,8 @@
 import pandas as pd
 import numpy as np
+import pendulum as p
+from datetime import datetime
 from dateutil.parser import parse
-from datetime import datetime, timedelta, time
 
 
 # determining ATM strike price based on the underlying price and the option type
@@ -18,16 +19,25 @@ def atm_strike(spot,option_chain):
 
 # Function to determine time to expiration in years
 
-def time_to_expiry(expiry):
-    current_time = datetime.datetime.now()
-    expiry = parse(expiry)
-    expiry = datetime.datetime(expiry.year, expiry.month, expiry.day,15,30)
-    timedelta =  expiry -current_time
-    tau = timedelta.total_seconds()/60
-    minutes_in_year = 365*24*60
-    tau = tau/minutes_in_year
+# def time_to_expiry(expiry):
+#     current_time = p.now(tz='local')
+#     expiry = p.datetime(expiry.year, expiry.month, expiry.day,15,30)
+#     tau = expiry.diff(current_time).in_days()/365
+#     return np.round(tau,4)
 
-    return np.round(tau, 4)
+
+def time_to_expiry(expiry_date):
+    """
+    Calculate the time to expiry in years.
+    Args:
+        expiry_date (datetime): The expiry date.
+    Returns:
+        float: Time to expiry in years.
+    """
+    today = datetime.now()
+    delta = expiry_date - today
+    return delta.days / 365.0
+
 
 # Function to highlight dataframe rows based on a condition
 def highlight_rows(x):
