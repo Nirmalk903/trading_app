@@ -115,8 +115,11 @@ def fetch_and_save_options_chain(symbol):
         OptionChain.to_json(file_path,orient='records')
     return f'Option Chain Saved'
 
-fetch_and_save_options_chain('reliance')
-# def enrich_option_chain(symbol):
-#     symbol = symbol.upper()
-#     print(f'Enriching option chain for {symbol}')
+# Function to enrich option chain with additional data
+
+def enrich_option_chain(symbol):
+    print(f'Enriching option chain for {symbol}')
+    # Load the option chain data from JSON file
+    symbol = symbol.upper()
+    print(f'Enriching option chain for {symbol}')
     
