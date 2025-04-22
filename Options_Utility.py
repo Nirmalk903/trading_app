@@ -19,14 +19,15 @@ def atm_strike(spot,option_chain):
 
 # Function to determine time to expiration in years
 
-# def time_to_expiry(expiry):
-#     current_time = p.now(tz='local')
-#     expiry = p.datetime(expiry.year, expiry.month, expiry.day,15,30)
-#     tau = expiry.diff(current_time).in_days()/365
-#     return np.round(tau,4)
+def time_to_expiry(expiry):
+    current_time = p.now(tz='local')
+    # expiry = parse(expiry)
+    expiry = p.datetime(expiry.year, expiry.month, expiry.day,15,30)
+    delta = expiry.diff(current_time).in_days()/365
+    return delta
 
 
-def time_to_expiry(expiry_date):
+def tau(expiry_date):
     """
     Calculate the time to expiry in years.
     Args:
