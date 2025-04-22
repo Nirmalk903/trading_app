@@ -161,11 +161,12 @@ def enrich_option_chain(symbol):
     chain['call_iv'] = chain.apply(lambda row: calculate_iv(row, option_type='call'), axis=1)
     chain['put_iv'] = chain.apply(lambda row: calculate_iv(row, option_type='put'), axis=1)
     
+    new_dir = f'./OptionChainJSON_Enriched'
+    os.makedirs(new_dir, exist_ok=True)
+    file_path = os.path.join(new_dir, f'{symbol}_OptionChain_Enriched.json')
+    chain.to_json(file_path,orient='records')
+    
     return chain
 
-
-df = enrich_option_chain('NIFTY')
-atm_table = df[df['is_atm_strike'] == 'Y']
-print(atm_table)
 
 

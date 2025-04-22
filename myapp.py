@@ -11,7 +11,7 @@ from json import JSONDecodeError
 import json
 import time
 import os
-from get_data import fetch_live_options_data, fetch_options_data, fetch_and_save_options_chain
+from get_data import fetch_live_options_data, fetch_options_data, fetch_and_save_options_chain, enrich_option_chain
 
 
 
@@ -24,6 +24,17 @@ for symbol in symbols:
         
         # Print the fetched data
         print(f"Live data for {symbol}:")
+        
+    except Exception as e:
+        print(f"Error fetching data for {symbol}: {e}")
+        
+for symbol in symbols:
+    try:
+        # Fetch and save options chain data
+        enrich_option_chain(symbol)
+        
+        # Print the fetched data
+        print(f"Enriched Option Chain for {symbol}:")
         
     except Exception as e:
         print(f"Error fetching data for {symbol}: {e}")
