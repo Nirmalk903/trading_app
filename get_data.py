@@ -11,6 +11,7 @@ from json import JSONDecodeError
 import json
 import time
 import os
+from quantlib_black_scholes import calculate_implied_volatility
 
 # Function to fetch options data from NSE website with retry logic
 
@@ -124,6 +125,24 @@ def fetch_and_save_options_chain(symbol):
     return f'Option Chain Saved'
 
 
+def calculate_iv(row, option_type='call'):
+            option_price = row['call_ltp'] if option_type == 'call' else row['put_ltp']
+            if row['call_ltp'] == 0:
+                return 0
+            try:
+                return calculate_implied_volatility(
+                    option_price=option_price,
+                    spot_price=row['spot_price'],
+                    strike_price=row['atm_strike'],
+                    risk_free_rate=row['rate'],
+                    time_to_expiry=row['tau'],
+                    option_type=option_type
+                )
+            except Exception as e:
+                # print(f"Error calculating IV for row {row}: {e}")
+                return None
+
+
 # Function to enrich option chain with additional data
 
 def enrich_option_chain(symbol):
@@ -134,8 +153,14 @@ def enrich_option_chain(symbol):
     chain = pd.read_json(file_path, orient='records')
     chain['Expiry'] = pd.to_datetime(chain['Expiry'])
     chain['tau'] = chain['Expiry'].apply(lambda x: tau(x))
+    chain['rate'] = 0.1
+    chain['atm_strike'] = chain['spot_price'].apply(lambda x: atm_strike(x,chain))
+    
+    chain['call_iv'] = chain.apply(lambda row: calculate_iv(row, option_type='call'), axis=1)
+    chain['put_iv'] = chain.apply(lambda row: calculate_iv(row, option_type='put'), axis=1)
+    
     return chain
 
-# df = enrich_option_chain('hdfcbank')
-# df
 
+# df = enrich_option_chain('tcs')
+# df
