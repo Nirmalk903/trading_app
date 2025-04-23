@@ -3,11 +3,7 @@ import numpy as np
 from Options_Utility import highlight_rows  # Placeholder for future implementation
 from black_scholes_functions import *
 import os
-
-
-from get_data import fetch_live_options_data, fetch_options_data, fetch_and_save_options_chain, enrich_option_chain
-
-
+from get_data import fetch_and_save_options_chain, enrich_option_chain
 
 symbols = ['NIFTY', 'BANKNIFTY', 'MIDCPNIFTY', 'FINNIFTY', 'RELIANCE', 'TATAMOTORS', 'HDFCBANK', 'ICICIBANK', 'INFY', 'TCS','AXISBANK','BAJFINANCE']
 
@@ -31,3 +27,10 @@ def load_option_chain(symbol):
     file_path = os.path.join('./OptionChainJSON_Enriched', file_name)
     chain = pd.read_json(file_path, orient='records')
     return chain
+
+df = load_option_chain('bankNIFTY')
+df[df['is_atm_strike'] == 'Y'].style.apply(highlight_rows, axis=1)
+# df[df['is_atm_strike'] == 'Y'].style.apply(highlight_rows, axis=1).to_html('highlighted_rows.html')
+
+atm_table = df[df['is_atm_strike'] == 'Y']
+print(atm_table)

@@ -152,8 +152,9 @@ def enrich_option_chain(symbol):
     file_name = f'{symbol}_OptionChain.json'
     file_path = os.path.join('./OptionChainJSON', file_name)
     chain = pd.read_json(file_path, orient='records')
-    chain['Expiry'] = pd.to_datetime(chain['Expiry'])
+    chain['Expiry'] = pd.to_datetime(chain['Expiry'],errors = 'coerce')
     chain['tau'] = chain['Expiry'].apply(lambda x: tau(x))
+    chain['Expiry'] = chain['Expiry'].dt.strftime('%d-%b-%Y')
     chain['rate'] = 0.1
     atm_strike_price = atm_strike(chain['spot_price'].iloc[0], chain)
     chain['atm_strike_price'] = atm_strike_price
@@ -166,7 +167,7 @@ def enrich_option_chain(symbol):
     file_path = os.path.join(new_dir, f'{symbol}_OptionChain_Enriched.json')
     chain.to_json(file_path,orient='records')
     
-    return chain
+    return None
 
 
 

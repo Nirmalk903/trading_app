@@ -19,25 +19,27 @@ def atm_strike(spot,option_chain):
 
 # Function to determine time to expiration in years
 
-def time_to_expiry(expiry):
+def tau(expiry):
+    # expiry = pd.to_datetime(expiry, errors='coerce')
     current_time = p.now(tz='local')
     # expiry = parse(expiry)
     expiry = p.datetime(expiry.year, expiry.month, expiry.day,15,30)
-    delta = expiry.diff(current_time).in_days()/365
+    delta = expiry.diff(current_time).in_seconds()
+    delta = delta / (365 * 24 * 60 * 60)  # Convert seconds to years
     return delta
 
 
-def tau(expiry_date):
-    """
-    Calculate the time to expiry in years.
-    Args:
-        expiry_date (datetime): The expiry date.
-    Returns:
-        float: Time to expiry in years.
-    """
-    today = datetime.now()
-    delta = expiry_date - today
-    return delta.days / 365.0
+# def tau(expiry_date):
+#     """
+#     Calculate the time to expiry in years.
+#     Args:
+#         expiry_date (datetime): The expiry date.
+#     Returns:
+#         float: Time to expiry in years.
+#     """
+#     today = datetime.now()
+#     delta = expiry_date - today
+#     return delta.days / 365.0
 
 
 # Function to highlight dataframe rows based on a condition
