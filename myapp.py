@@ -30,7 +30,6 @@ def load_option_chain(symbol):
 
 df = load_option_chain('bankNIFTY')
 df[df['is_atm_strike'] == 'Y'].style.apply(highlight_rows, axis=1)
-# df[df['is_atm_strike'] == 'Y'].style.apply(highlight_rows, axis=1).to_html('highlighted_rows.html')
 
 atm_table = df[df['is_atm_strike'] == 'Y']
 print(atm_table)
