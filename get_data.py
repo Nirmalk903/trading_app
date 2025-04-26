@@ -192,19 +192,22 @@ def enrich_option_chain(symbol):
     atm_dir = f'./ATM_OptionChainJSON'
     os.makedirs(atm_dir, exist_ok=True)
     atm_file_path = os.path.join(atm_dir, f'{symbol}_ATM_OptionChain.json')
+    chain_v = chain.copy()
+    chain_v['timestamp'] = datetime.now().strftime('%Y-%m-%d %H:%M')
     if os.path.exists(atm_file_path):
         existing_data = pd.read_json(atm_file_path, orient='records')
     else:
-        existing_data = pd.DataFrame()
-    new_data = chain.query('is_atm_strike == "Y"')
-    new_data['timestamp'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    updated_data = pd.concat([existing_data, new_data], ignore_index=True)
-    updated_data.drop_duplicates(subset=['strike_price'], keep='last', inplace=True)
+        existing_data = pd.DataFrame(columns=chain_v.columns)
+    new_data = chain_v.query('is_atm_strike == "Y"')
+    updated_data = pd.concat([existing_data, new_data]).drop_duplicates(keep='last',inplace = False)
+    updated_data = updated_data[~updated_data.index.duplicated(keep='last')]
     updated_data.to_json(atm_file_path, orient='records')
     print(f"ATM data for {symbol} saved successfully.")
     
     return None
 
+
+enrich_option_chain('BANKNIFTY')
 
 # enrich_option_chain('NIFTY')
 
