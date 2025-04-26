@@ -182,10 +182,10 @@ def enrich_option_chain(symbol):
     chain['put_delta'] = chain.apply(lambda row: apply_greeks(row, option_type='put').get('delta'), axis=1)
     
     chain['call_gamma'] = chain.apply(lambda row: apply_greeks(row, option_type='call').get('gamma'), axis=1)
-    chain['put_gamma'] = chain.apply(lambda row: apply_greeks(row, option_type='put').get('gamma'), axis=1)
+    # chain['put_gamma'] = chain.apply(lambda row: apply_greeks(row, option_type='put').get('gamma'), axis=1)
     
     chain['call_vega'] = chain.apply(lambda row: apply_greeks(row, option_type='call').get('vega'), axis=1)
-    chain['put_vega'] = chain.apply(lambda row: apply_greeks(row, option_type='put').get('vega'), axis=1)
+    # chain['put_vega'] = chain.apply(lambda row: apply_greeks(row, option_type='put').get('vega'), axis=1)
     
     
     new_dir = f'./OptionChainJSON_Enriched'

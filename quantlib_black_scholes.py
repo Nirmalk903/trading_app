@@ -62,7 +62,7 @@ def calculate_greeks(option_price, spot_price, strike_price, risk_free_rate, tim
     greeks = {
         'delta': delta,
         'gamma': gamma,
-        'vega': vega,
+        'vega': vega/10,
         'theta': theta,
         'rho': rho,
         'IV': implied_vol*100}
@@ -70,14 +70,14 @@ def calculate_greeks(option_price, spot_price, strike_price, risk_free_rate, tim
     return greeks
 
 
-# option_price = 100  # Example option price
-# spot_price = 1000  # Example spot price
-# strike_price = 1000  # Example strike price
-# risk_free_rate = 0.05  # Example risk-free rate (5%)
-# time_to_expiry = 0.5  # Example time to expiry (6 months)
-# option_type = 'call'  # Example option type ('call' or 'put')
+option_price = 100  # Example option price
+spot_price = 1000  # Example spot price
+strike_price = 1000  # Example strike price
+risk_free_rate = 0.05  # Example risk-free rate (5%)
+time_to_expiry = 0.5  # Example time to expiry (6 months)
+option_type = 'call'  # Example option type ('call' or 'put')
 
-# greeks = calculate_greeks(option_price, spot_price, strike_price, risk_free_rate, time_to_expiry, option_type)
-# print(greeks)
+greeks = calculate_greeks(option_price, spot_price, strike_price, risk_free_rate, time_to_expiry, option_type)
+print(greeks)
 
 # greeks.get('vega',0)
