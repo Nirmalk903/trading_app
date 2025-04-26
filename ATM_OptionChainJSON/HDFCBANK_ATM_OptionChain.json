@@ -1,0 +1,1 @@
+[{"Expiry":"26-Jun-2025","call_oi":25,"call_change_oi":25,"call_ltp":76.0,"strike_price":1900,"put_ltp":47.0,"put_oi":4,"put_change_oi":4,"spot_price":1908,"tau":0.1678844495,"expiry_days":61,"rate":0.1,"atm_strike_price":1900,"is_atm_strike":"Y","call_iv":23.59,"put_iv":16.65,"call_delta":0.53,"put_delta":-0.46,"gamma":0.0025,"vega":3.047,"timestamp":"2025-04-26 14:19:55"}]

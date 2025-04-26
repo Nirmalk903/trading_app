@@ -170,28 +170,38 @@ def enrich_option_chain(symbol):
     chain['Expiry'] = pd.to_datetime(chain['Expiry'], format='%d-%b-%Y', errors='coerce')
     chain['tau'] = chain['Expiry'].apply(lambda x: tau(x))
     chain['Expiry'] = chain['Expiry'].dt.strftime('%d-%b-%Y')
+    chain['expiry_days'] = chain['tau'].apply(lambda x: int(x * 365))
     chain['rate'] = 0.1
     atm_strike_price = atm_strike(chain['spot_price'].iloc[0], chain)
     chain['atm_strike_price'] = atm_strike_price
     chain['is_atm_strike'] = chain['strike_price'].apply(lambda x: "Y" if x == atm_strike_price else "N")
-    
     chain['call_iv'] = chain.apply(lambda row: apply_greeks(row, option_type='call').get('IV'), axis=1)
     chain['put_iv'] = chain.apply(lambda row: apply_greeks(row, option_type='put').get('IV'), axis=1)
-    
     chain['call_delta'] = chain.apply(lambda row: apply_greeks(row, option_type='call').get('delta'), axis=1)
     chain['put_delta'] = chain.apply(lambda row: apply_greeks(row, option_type='put').get('delta'), axis=1)
+    chain['gamma'] = chain.apply(lambda row: apply_greeks(row, option_type='call').get('gamma'), axis=1)
+    chain['vega'] = chain.apply(lambda row: apply_greeks(row, option_type='call').get('vega'), axis=1)
     
-    chain['call_gamma'] = chain.apply(lambda row: apply_greeks(row, option_type='call').get('gamma'), axis=1)
-    # chain['put_gamma'] = chain.apply(lambda row: apply_greeks(row, option_type='put').get('gamma'), axis=1)
-    
-    chain['call_vega'] = chain.apply(lambda row: apply_greeks(row, option_type='call').get('vega'), axis=1)
-    # chain['put_vega'] = chain.apply(lambda row: apply_greeks(row, option_type='put').get('vega'), axis=1)
-    
-    
+    # Writing enriched option chain to JSON file
     new_dir = f'./OptionChainJSON_Enriched'
     os.makedirs(new_dir, exist_ok=True)
     file_path = os.path.join(new_dir, f'{symbol}_OptionChain_Enriched.json')
     chain.to_json(file_path,orient='records')
+    
+    # Writing ATM data to JSON file
+    atm_dir = f'./ATM_OptionChainJSON'
+    os.makedirs(atm_dir, exist_ok=True)
+    atm_file_path = os.path.join(atm_dir, f'{symbol}_ATM_OptionChain.json')
+    if os.path.exists(atm_file_path):
+        existing_data = pd.read_json(atm_file_path, orient='records')
+    else:
+        existing_data = pd.DataFrame()
+    new_data = chain.query('is_atm_strike == "Y"')
+    new_data['timestamp'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    updated_data = pd.concat([existing_data, new_data], ignore_index=True)
+    updated_data.drop_duplicates(subset=['strike_price'], keep='last', inplace=True)
+    updated_data.to_json(atm_file_path, orient='records')
+    print(f"ATM data for {symbol} saved successfully.")
     
     return None
 

@@ -28,10 +28,19 @@ def load_option_chain(symbol):
     chain = pd.read_json(file_path, orient='records')
     return chain
 
-df = load_option_chain('NIFTY')
-df[df['is_atm_strike'] == 'Y'].style.apply(highlight_rows, axis=1)
-df['atm_strike_price']
-atm_table = df[df['is_atm_strike'] == 'Y']
-print(atm_table)
+df = load_option_chain('bajfinance')
+df.query('is_atm_strike == "Y"')
+# df.query('is_atm_strike == "Y"').style.apply(highlight_rows, axis=1).hide_index()
+
+def load_atm_chain(symbol):
+    symbol = symbol.upper()
+    print(f'Loading ATM data for {symbol}')
+    file_name = f'{symbol}_ATM_OptionChain.json'
+    file_path = os.path.join('./ATM_OptionChainJSON', file_name)
+    chain = pd.read_json(file_path, orient='records')
+    return chain
+
+ds = load_atm_chain('nifty')
+ds
 
 

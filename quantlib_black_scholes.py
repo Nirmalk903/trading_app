@@ -60,24 +60,12 @@ def calculate_greeks(option_price, spot_price, strike_price, risk_free_rate, tim
     rho = european_option.rho()
     
     greeks = {
-        'delta': delta,
-        'gamma': gamma,
-        'vega': vega/10,
-        'theta': theta,
-        'rho': rho,
-        'IV': implied_vol*100}
+        'delta': round(delta,2),
+        'gamma': round(gamma,4),
+        'vega': round(vega/100,3),
+        'theta': round(theta,2),  
+        'rho': round(rho/100,3),  # Convert to percentage rho
+        'IV': round(implied_vol*100,2)}  # Convert to percentage implied volatility
     
     return greeks
 
-
-option_price = 100  # Example option price
-spot_price = 1000  # Example spot price
-strike_price = 1000  # Example strike price
-risk_free_rate = 0.05  # Example risk-free rate (5%)
-time_to_expiry = 0.5  # Example time to expiry (6 months)
-option_type = 'call'  # Example option type ('call' or 'put')
-
-greeks = calculate_greeks(option_price, spot_price, strike_price, risk_free_rate, time_to_expiry, option_type)
-print(greeks)
-
-# greeks.get('vega',0)
