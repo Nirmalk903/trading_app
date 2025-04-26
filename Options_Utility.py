@@ -8,7 +8,9 @@ from dateutil.parser import parse
 # determining ATM strike price based on the underlying price and the option type
 
 def atm_strike(spot,option_chain):
+    option_chain=option_chain[option_chain['Expiry']==option_chain['Expiry'].unique()[0]]
     multiplier = int(option_chain['strike_price'].diff().unique()[-1])
+    # multiplier = int(option_chain['strike_price'].diff().unique().min())    
   
     # Smaller multiple
     a = (spot // multiplier) * multiplier
@@ -16,6 +18,8 @@ def atm_strike(spot,option_chain):
     b = a + multiplier
     # Return of closest of two
     return int((b if spot - a > b - spot else a))
+
+
 
 # Function to determine time to expiration in years
 

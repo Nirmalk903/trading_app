@@ -14,7 +14,7 @@ for symbol in symbols:
         enrich_option_chain(symbol)
         
         # Print the fetched data
-        print(f"Live data for {symbol}:")
+        print(f"Live data for {symbol} saved successfully.")
         
     except Exception as e:
         print(f"Error fetching data for {symbol}: {e}")
@@ -28,8 +28,10 @@ def load_option_chain(symbol):
     chain = pd.read_json(file_path, orient='records')
     return chain
 
-df = load_option_chain('bankNIFTY')
+df = load_option_chain('NIFTY')
 df[df['is_atm_strike'] == 'Y'].style.apply(highlight_rows, axis=1)
-
+df['atm_strike_price']
 atm_table = df[df['is_atm_strike'] == 'Y']
 print(atm_table)
+
+

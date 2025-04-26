@@ -32,6 +32,7 @@ def fetch_options_data(symbol):
     
     return pd.DataFrame(response.json())
 
+
 # Alternative function to fetch options data from NSE Website
 
 @lru_cache()
@@ -74,7 +75,7 @@ def fetch_and_save_options_chain(symbol):
     # data = fetch_options_data(symbol)
     data = fetch_live_options_data(symbol)
     # data['spot_price'] = data.loc['underlyingValue','records']
-    dates = pd.to_datetime(data.loc['expiryDates','records'])
+    dates = pd.to_datetime(data.loc['expiryDates','records'],format='%d-%b-%Y')
     max_expiry = dates[0]+timedelta(days=90)
     expiry = [i.strftime('%d-%b-%Y') for i in dates if dates[0] <= i <= max_expiry]
     
@@ -122,7 +123,9 @@ def fetch_and_save_options_chain(symbol):
         os.makedirs(new_dir, exist_ok=True)
         file_path = os.path.join(new_dir, f'{symbol}_OptionChain.json')
         OptionChain.to_json(file_path,orient='records')
+        # print(f"Option Chain for {symbol} saved")
     return f'Option Chain Saved'
+
 
 
 def apply_greeks(row, option_type='call'):
@@ -164,7 +167,7 @@ def enrich_option_chain(symbol):
     file_name = f'{symbol}_OptionChain.json'
     file_path = os.path.join('./OptionChainJSON', file_name)
     chain = pd.read_json(file_path, orient='records')
-    chain['Expiry'] = pd.to_datetime(chain['Expiry'],errors = 'coerce')
+    chain['Expiry'] = pd.to_datetime(chain['Expiry'], format='%d-%b-%Y', errors='coerce')
     chain['tau'] = chain['Expiry'].apply(lambda x: tau(x))
     chain['Expiry'] = chain['Expiry'].dt.strftime('%d-%b-%Y')
     chain['rate'] = 0.1
