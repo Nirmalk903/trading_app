@@ -11,7 +11,7 @@ from json import JSONDecodeError
 import json
 import time
 import os
-from quantlib_black_scholes import calculate_implied_volatility
+from quantlib_black_scholes import calculate_greeks
 
 # Function to fetch options data from NSE website with retry logic
 
@@ -125,12 +125,18 @@ def fetch_and_save_options_chain(symbol):
     return f'Option Chain Saved'
 
 
-def calculate_iv(row, option_type='call'):
+def apply_greeks(row, option_type='call'):
     option_price = row['call_ltp'] if option_type == 'call' else row['put_ltp']
     if pd.isna(option_price) or option_price == 0:
-        return 0
+        return {
+        'delta': 0,
+        'gamma': 0,
+        'vega': 0,
+        'theta': 0,
+        'rho': 0,
+        'IV': 0}
     try:
-        return calculate_implied_volatility(
+        return calculate_greeks(
             option_price=option_price,
             spot_price=row['spot_price'],
             strike_price=row['strike_price'],
@@ -140,7 +146,13 @@ def calculate_iv(row, option_type='call'):
         )  
     except Exception as e:
         # print(f"Error calculating IV for row {row}: {e}")
-        return None
+        return {
+        'delta': 0,
+        'gamma': 0,
+        'vega': 0,
+        'theta': 0,
+        'rho': 0,
+        'IV': 0}  # Return 0 if there's an error in calculation
             
 
 
@@ -159,8 +171,19 @@ def enrich_option_chain(symbol):
     atm_strike_price = atm_strike(chain['spot_price'].iloc[0], chain)
     chain['atm_strike_price'] = atm_strike_price
     chain['is_atm_strike'] = chain['strike_price'].apply(lambda x: "Y" if x == atm_strike_price else "N")
-    chain['call_iv'] = chain.apply(lambda row: calculate_iv(row, option_type='call'), axis=1)
-    chain['put_iv'] = chain.apply(lambda row: calculate_iv(row, option_type='put'), axis=1)
+    
+    chain['call_iv'] = chain.apply(lambda row: apply_greeks(row, option_type='call').get('IV'), axis=1)
+    chain['put_iv'] = chain.apply(lambda row: apply_greeks(row, option_type='put').get('IV'), axis=1)
+    
+    chain['call_delta'] = chain.apply(lambda row: apply_greeks(row, option_type='call').get('delta'), axis=1)
+    chain['put_delta'] = chain.apply(lambda row: apply_greeks(row, option_type='put').get('delta'), axis=1)
+    
+    chain['call_gamma'] = chain.apply(lambda row: apply_greeks(row, option_type='call').get('gamma'), axis=1)
+    chain['put_gamma'] = chain.apply(lambda row: apply_greeks(row, option_type='put').get('gamma'), axis=1)
+    
+    chain['call_vega'] = chain.apply(lambda row: apply_greeks(row, option_type='call').get('vega'), axis=1)
+    chain['put_vega'] = chain.apply(lambda row: apply_greeks(row, option_type='put').get('vega'), axis=1)
+    
     
     new_dir = f'./OptionChainJSON_Enriched'
     os.makedirs(new_dir, exist_ok=True)
@@ -170,4 +193,5 @@ def enrich_option_chain(symbol):
     return None
 
 
+# enrich_option_chain('NIFTY')
 

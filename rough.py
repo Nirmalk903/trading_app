@@ -17,7 +17,7 @@ headers = {
     'referer': 'https://www.nseindia.com/market-data/most-active-underlying',
     'user-agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36 Edg/135.0.0.0'}
 response = requests.get(url,headers=headers)
-response = requests.get(url)
+# response = requests.get(url)
 print(response.status_code)
 if response.status_code == 200:
     print("Page fetched successfully")
