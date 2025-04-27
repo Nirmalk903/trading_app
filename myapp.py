@@ -7,11 +7,12 @@ from get_data import fetch_and_save_options_chain, enrich_option_chain
 
 symbols = ['NIFTY', 'BANKNIFTY', 'MIDCPNIFTY', 'FINNIFTY', 'RELIANCE', 'TATAMOTORS', 'HDFCBANK', 'ICICIBANK', 'INFY', 'TCS','AXISBANK','BAJFINANCE']
 
+
 for symbol in symbols:
     try:
         # Fetch and save options chain data
-        fetch_and_save_options_chain(symbol)
-        enrich_option_chain(symbol)
+        fetch_and_save_options_chain(symbol) #Download data from NSE, formats it into an option chain and save it to a JSON file
+        enrich_option_chain(symbol)      #Enrich the data with greeks and other calculations and save it to a JSON file
         
         # Print the fetched data
         print(f"Live data for {symbol} saved successfully.")
@@ -20,7 +21,7 @@ for symbol in symbols:
         print(f"Error fetching data for {symbol}: {e}")
         
 
-def load_option_chain(symbol):
+def load_enriched_option_chain(symbol):        
     symbol = symbol.upper()
     print(f'Loading option chain for {symbol}')
     file_name = f'{symbol}_OptionChain_Enriched.json'
@@ -39,6 +40,8 @@ def load_atm_chain(symbol):
     return chain
 
 
-enrich_option_chain('NIFTY')
-df = load_atm_chain('NIFTY')
-df
+df = load_enriched_option_chain('NIFTY')
+
+(df.columns)
+
+df.query('is_atm_strike == "Y"')

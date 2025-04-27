@@ -206,8 +206,3 @@ def enrich_option_chain(symbol):
     
     return None
 
-
-enrich_option_chain('BANKNIFTY')
-
-# enrich_option_chain('NIFTY')
-
