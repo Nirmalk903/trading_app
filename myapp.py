@@ -42,6 +42,10 @@ def load_atm_chain(symbol):
 
 df = load_enriched_option_chain('NIFTY')
 
-(df.columns)
 
-df.query('is_atm_strike == "Y"')
+x = df.query('is_atm_strike == "Y"')
+
+df.columns
+
+# df.loc[:,['Expiry','call_iv','put_iv','spot_price','expiry_days','rate']]['Expiry']== '2023-10-26'
+x.loc[:,['Expiry','call_iv','put_iv','spot_price','expiry_days','rate','atm_strike_price','strike_price','call_ltp','put_ltp']]

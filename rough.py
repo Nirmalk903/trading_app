@@ -1,21 +1,12 @@
+import QuantLib as ql
+import pandas as pd
 
 
-# from helium import *
 
-# # Start Chrome and navigate to the NSE option chain page
-# start_chrome("https://www.nseindia.com/option-chain")
-
-# # Wait for the page to load
-# wait_until(Text("Option Chain").exists)
-
-# # Click on the dropdown to select the index
-# click("Select Option Type")
-
-# # Write "NIFTY" and press Enter to select it
-# write("NIFTY", into="Select Option Type")
-# press(ENTER)
-
-# # Verify if NIFTY is selected
-# wait_until(Text("NIFTY").exists)
-
-# print("NIFTY selected successfully!")
+# Set up QuantLib objects
+calendar = ql.NullCalendar()
+day_count = ql.Actual365Fixed()
+settlement_date = ql.Date.todaysDate()
+time_to_expiry = 2/365
+maturity_date = settlement_date + int(time_to_expiry * 365)
+maturity_date

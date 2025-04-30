@@ -40,7 +40,7 @@ def calculate_greeks(option_price, spot_price, strike_price, risk_free_rate, tim
     # Market data
     spot_handle = ql.QuoteHandle(ql.SimpleQuote(spot_price))
     rate_handle = ql.YieldTermStructureHandle(ql.FlatForward(settlement_date, risk_free_rate, day_count))
-    vol_handle = ql.BlackVolTermStructureHandle(ql.BlackConstantVol(settlement_date, calendar, 0.2, day_count))  # Initial guess for volatility
+    vol_handle = ql.BlackVolTermStructureHandle(ql.BlackConstantVol(settlement_date, calendar, 0.05, day_count))  # Initial guess for volatility
 
     # Black-Scholes-Merton process
     bsm_process = ql.BlackScholesMertonProcess(spot_handle, rate_handle, rate_handle, vol_handle)
