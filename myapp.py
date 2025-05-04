@@ -5,7 +5,7 @@ from black_scholes_functions import *
 import os
 from get_data import fetch_and_save_options_chain, enrich_option_chain
 
-symbols = ['NIFTY', 'BANKNIFTY', 'MIDCPNIFTY', 'FINNIFTY', 'RELIANCE', 'TATAMOTORS', 'HDFCBANK', 'ICICIBANK', 'INFY', 'TCS','AXISBANK','BAJFINANCE']
+symbols = ['NIFTY', 'BANKNIFTY', 'RELIANCE', 'TATAMOTORS', 'HDFCBANK', 'ICICIBANK', 'INFY', 'TCS','AXISBANK','BAJFINANCE']
 
 
 for symbol in symbols:

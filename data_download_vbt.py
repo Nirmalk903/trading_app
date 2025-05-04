@@ -17,14 +17,14 @@ def getdata_vbt(symbol, period='20y', interval='1d'):
         file_name = f'{symbol}_{interval}.csv'
         file_path = os.path.join('./Underlying_data_vbt', file_name)
         
-        Price = vbt.YFData.download(symbol, period=period, interval=interval).get("Close")
+        Close = vbt.YFData.download(symbol, period=period, interval=interval).get("Close")
         High = vbt.YFData.download(symbol, period=period, interval=interval).get("High")
         Low = vbt.YFData.download(symbol, period=period, interval=interval).get("Low")
         Open = vbt.YFData.download(symbol, period=period, interval=interval).get("Open")
         Volume = vbt.YFData.download(symbol, period=period, interval=interval).get("Volume")
         
-        data = pd.concat([Price, High, Low, Open, Volume], axis=1)
-        data.columns = ['Price', 'High', 'Low', 'Open', 'Volume']
+        data = pd.concat([Close, High, Low, Open, Volume], axis=1)
+        data.columns = ['Close', 'High', 'Low', 'Open', 'Volume']
         
         data.reset_index(inplace=True)
         data['Date'] = pd.to_datetime(data['Date'], format='%Y-%m-%d', errors='coerce')
