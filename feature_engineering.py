@@ -4,6 +4,10 @@ import numpy as np
 import pandas_ta as ta
 import os
 import vectorbt as vbt
+from volatility_modeling import garch_vol
+# import talib as ta
+
+
 
 class FeatureEngineering:
     
@@ -92,29 +96,37 @@ class FeatureEngineering:
         
         return X
     
-    def dpo_centered(self, X, lag):
-        self.lag=lag
-        for i in range(2,lag,2):
+    def dpo_centered(self, X, period = 20):
+        
+        if 'Close' not in X.columns:
+            raise ValueError("The DataFrame must contain a 'Close' column.")
+
+        # Calculate the Simple Moving Average (SMA)
+        sma = X['Close'].rolling(window=period).mean()
+
+        # Shift the SMA by (period / 2) + 1 periods
+        sma_shifted = sma.shift(int((period / 2) + 1))
+
+        # Calculate the DPO
+        X[f'DPO_{period}'] = X['Close'] - sma_shifted
             
-            X[f'DPO_{i}'] = X.ta.dpo(i,centered=True)
+        return X
+    
+    def dpo_non_centered(self, X, period = 20):
+        self.period = period
+        
+        X['DPO'] = ta.dpo(X['Close'],length=self.period,centered=False)
+        X['DPO'] = X['DPO'].replace([np.inf, -np.inf], np.nan)
+        X['DPO'] = X['DPO'].fillna(method='bfill')
         
         return X
     
-    def dpo_non_centered(self, X, lag):
-        self.lag=lag
-        for i in range(2,lag,2):
-            
-            X[f'DPO_{i}'] = X.ta.dpo(i,centered=False)
-        
-        return X
     
-    
-    def cfo(self, X, lag):
-        self.lag=lag
-        for i in range(2,lag,2):
-            
-            X[f'CFO_{i}'] = X.ta.cfo(i)
-        
+    def cfo(self, X, period = 20):
+        self.period = period
+        X['CFO'] = ta.cfo(X['Close'], length=self.period, fillna=True)
+        X['CFO'] = X['CFO'].replace([np.inf, -np.inf], np.nan)
+        X['CFO'] = X['CFO'].fillna(method='bfill')
         return X
     
     def rolling_vol(self, X, lag):
@@ -134,19 +146,22 @@ class FeatureEngineering:
         rsi = vbt.RSI.run(X['Close'], window=14, short_name='RSI')
         X['RSI'] = rsi.rsi
         return X
+
     
     def callme(self,X):
+        self.returns(X)
         self.dCPR(X)
         self.wCPR(X)
         # self.cpr_vol(X,lag=20)
         self.price_momentum(X,lag=20)
         self.sma(X,lag=20)
         self.price_range(X)
-        # self.dpo_centered(X,lag=20)
+        self.dpo_centered(X)
         # self.dpo_non_centered(X,lag=20)
         # self.cfo(X,lag=20)
         self.rolling_vol(X,lag=25)
-        self.returns(X)
+        self.rsi(X)
+
         
         print('Feature Engineering Completed')
         return X
@@ -154,6 +169,7 @@ class FeatureEngineering:
 
 
 
+# symbols = ['^NSEI', '^NSEBANK', 'RELIANCE.NS', 'TATAMOTORS.NS']
 symbols = ['^NSEI', '^NSEBANK', 'RELIANCE.NS', 'TATAMOTORS.NS', 'HDFCBANK.NS', 'ICICIBANK.NS', 'INFY.NS', 'TCS.NS','AXISBANK.NS','BAJFINANCE.NS']
 
 
@@ -174,7 +190,10 @@ def add_features(symbols, interval='1d'):
         # Apply feature engineering using callme
         feat_eng = FeatureEngineering(data)
         data = feat_eng.callme(data)
-
+        
+        # Add GARCH volatility
+        data['garch_vol'] = garch_vol(symbol).values
+        
         # Save the engineered features to a new CSV file
         new_dir = f'./Engineered_data'
         os.makedirs(new_dir, exist_ok=True)
@@ -184,6 +203,4 @@ def add_features(symbols, interval='1d'):
         data.to_json(file_path.replace('.csv', '.json'), orient='records', lines=True)
         print(f"Feature engineered data for {symbol} saved successfully.")
     
-    return None
-
-add_features(symbols)
+    return data

@@ -42,30 +42,51 @@ def egarch(symbols):
             pickle.dump(g1_fit, f)
         print(f"Optimized EGARCH model for {symbol} saved successfully.")
 
-# Run the EGARCH function
-egarch(symbols)
+ 
 
-
-
-
-def load_egarch_model(symbol):
-   
+def garch_vol(symbol):
+ 
     model_pickle_path = f'./EGARCH_Models/{symbol}_EGARCH_model.pkl'
 
+    # Check if the model file exists
     if not os.path.exists(model_pickle_path):
         print(f"Model file for {symbol} does not exist.")
+        print(f"Running the EGARCH function to create the model first.")
+        egarch([symbol])
         return None
 
+    # Load the saved model
     with open(model_pickle_path, 'rb') as f:
-        garch_model = pickle.load(f)
+        saved_model = pickle.load(f)
 
-    print(f"EGARCH model for {symbol} loaded successfully.")
-    return garch_model
-
-# Example usage
-symbol = 'RELIANCE.NS'  # Replace with the desired symbol
-loaded_model = load_egarch_model(symbol)
-
-if loaded_model:
-    print(loaded_model.summary())
+    # Extract the model parameters
+    params = saved_model.params
     
+    # Load new data (e.g., returns)
+    new_data_path = f'./Underlying_data_vbt/{symbol}_1d.csv'
+    data = pd.read_csv(new_data_path)
+    returns = np.log(data['Close']).diff().dropna() * 100  # Convert to percentage returns
+
+    # Fit the EGARCH model to the new data
+    garch_model = arch_model(returns, vol='EGARCH', p=1, o=0, q=1, dist='Normal', rescale=False)
+    refitted_model = garch_model.fit(starting_values=params, disp='off')
+    
+    garch_vol = refitted_model.conditional_volatility * np.sqrt(251)  # Annualize the volatility
+    
+    index_diff = len(data) - len(garch_vol)
+    if index_diff > 0:
+        # Create a Series of NaN values with length index_diff
+        nan_series = pd.Series([np.nan] * index_diff, index=returns.index[:index_diff])
+    else:
+        # If the lengths are equal, create an empty Series 
+        nan_series = pd.Series(dtype=float)
+        
+    garch_vol = pd.concat([nan_series, pd.Series(garch_vol, index=data.index[-len(garch_vol):])])
+    
+
+    print(f"Refitted EGARCH model for {symbol}:")   
+    
+    return garch_vol
+
+
+garch_vol('RELIANCE.NS')
