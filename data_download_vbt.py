@@ -5,7 +5,7 @@ import os
 import json
 
 
-symbols = ['^NSEI', '^NSEBANK', 'RELIANCE.NS', 'TATAMOTORS.NS', 'HDFCBANK.NS', 'ICICIBANK.NS', 'INFY.NS', 'TCS.NS','AXISBANK.NS','BAJFINANCE.NS']
+# symbols = ['^NSEI', '^NSEBANK', 'RELIANCE.NS', 'TATAMOTORS.NS', 'HDFCBANK.NS', 'ICICIBANK.NS', 'INFY.NS', 'TCS.NS','AXISBANK.NS','BAJFINANCE.NS']
 
 def getdata_vbt(symbol, period='20y', interval='1d'):
     
@@ -37,7 +37,7 @@ def getdata_vbt(symbol, period='20y', interval='1d'):
 
 
 
-symbols = ['^NSEI', '^NSEBANK', 'RELIANCE.NS', 'TATAMOTORS.NS', 'HDFCBANK.NS', 'ICICIBANK.NS', 'INFY.NS', 'TCS.NS','AXISBANK.NS','BAJFINANCE.NS']
+# symbols = ['^NSEI', '^NSEBANK', 'RELIANCE.NS', 'TATAMOTORS.NS', 'HDFCBANK.NS', 'ICICIBANK.NS', 'INFY.NS', 'TCS.NS','AXISBANK.NS','BAJFINANCE.NS']
 
 def get_underlying_data_vbt(symbols, period='20y', interval='1d'):
     for symbol in symbols:
@@ -53,7 +53,7 @@ def get_underlying_data_vbt(symbols, period='20y', interval='1d'):
             if not existing_data.empty:
                 last_date = existing_data['Date'].max()
                 # Download only data after last_date
-                start = (pd.to_datetime(last_date) + pd.Timedelta(days=1)).strftime('%Y-%m-%d')
+                start = (pd.to_datetime(last_date-2) + pd.Timedelta(days=1)).strftime('%Y-%m-%d')
                 Close = vbt.YFData.download(symbol, start=start, interval=interval).get("Close")
                 High = vbt.YFData.download(symbol, start=start, interval=interval).get("High")
                 Low = vbt.YFData.download(symbol, start=start, interval=interval).get("Low")

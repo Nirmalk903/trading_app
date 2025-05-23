@@ -53,7 +53,7 @@ def garch_vol(symbol):
         print(f"Model file for {symbol} does not exist.")
         print(f"Running the EGARCH function to create the model first.")
         egarch([symbol])
-        return None
+        # return None
 
     # Load the saved model
     with open(model_pickle_path, 'rb') as f:
