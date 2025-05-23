@@ -1,27 +1,29 @@
-import pickle
+import pandas as pd
+import numpy as np
 import os
+from datetime import datetime
+import json
 
-def load_egarch_model(symbol):
-   
-    model_pickle_path = f'./EGARCH_Models/{symbol}_EGARCH_model.pkl'
 
-    if not os.path.exists(model_pickle_path):
-        print(f"Model file for {symbol} does not exist.")
-        return None
+dt = datetime.now()
 
-    with open(model_pickle_path, 'rb') as f:
-        garch_model = pickle.load(f)
+def get_symbols(dt,top_n=17):
+    dt = dt.strftime('%d-%b-%Y')
+    file_name = f'LA-MOST-ACTIVE-UNDERLYING-{dt}.csv'
+    file_path = os.path.join('./Most_Active_Underlying', file_name)
+    if os.path.exists(file_path):
+        most_active = pd.read_csv(file_path)
+        most_active = most_active[~most_active['Symbol'].isin(['MIDCPNIFTY', 'FINNIFTY','NIFTYIT','NIFTYNXT50','NIFTYPSUBANK','NIFTYINFRA','NIFTYMETAL','NIFTYPHARMA','NIFTYMEDIA','NIFTYAUTO','NIFTYCONSUMPTION','NIFTYENERGY','NIFTYFMCG','NIFTYHEALTHCARE'])].reset_index(drop=True)
+        # most_active['YF_Symbol'] = most_active['Symbol'].apply(lambda x: f'{x}.NS' if x not in ['^NSEI', '^NSEBANK'] else x)
+        most_active['YF_Symbol'] = most_active['Symbol'].apply(lambda x: '^NSEI' if x == 'NIFTY' else '^NSEBANK' if x == 'BANKNIFTY' else f'{x}.NS')
+        most_active = most_active.sort_values(by='Value (? Lakhs) - Total', ascending=False).reset_index(drop=True)
+        most_active = most_active.head(top_n)
+    else:
+        print(f"File {file_name} does not exist.")
+        
+    symbols = most_active['Symbol'].tolist()
+    yf_symbols = most_active['YF_Symbol'].tolist()
+    return symbols, yf_symbols
 
-    print(f"EGARCH model for {symbol} loaded successfully.")
-    return garch_model
+symbols , yf_symbols = get_symbols(dt,top_n=17)
 
-# Example usage
-symbol = 'RELIANCE.NS'  # Replace with the desired symbol
-loaded_model = load_egarch_model(symbol)
-
-if loaded_model:
-    print(loaded_model.summary())
-    
-# Note: The loaded model can be used for further analysis or predictions as needed.
-# The above code assumes that the EGARCH model was saved using the pickle module in the previous code snippet.
-# Ensure that the EGARCH model is compatible with the loaded data and libraries.

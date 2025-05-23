@@ -89,4 +89,5 @@ def garch_vol(symbol):
     return garch_vol
 
 
-garch_vol('RELIANCE.NS')
+
+

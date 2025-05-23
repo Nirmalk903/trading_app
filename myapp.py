@@ -3,9 +3,32 @@ import numpy as np
 from Options_Utility import highlight_rows  # Placeholder for future implementation
 from black_scholes_functions import *
 import os
-from get_data import fetch_and_save_options_chain, enrich_option_chain
+from get_options_data import fetch_and_save_options_chain, enrich_option_chain
+from data_download_vbt import getdata_vbt, get_underlying_data_vbt
+from feature_engineering import add_features
 
-symbols = ['NIFTY', 'BANKNIFTY', 'RELIANCE', 'TATAMOTORS', 'HDFCBANK', 'ICICIBANK', 'INFY', 'TCS','AXISBANK','BAJFINANCE']
+
+dt = datetime.now()
+
+def get_symbols(dt,top_n=17):
+    dt = dt.strftime('%d-%b-%Y')
+    file_name = f'LA-MOST-ACTIVE-UNDERLYING-{dt}.csv'
+    file_path = os.path.join('./Most_Active_Underlying', file_name)
+    if os.path.exists(file_path):
+        most_active = pd.read_csv(file_path)
+        most_active = most_active[~most_active['Symbol'].isin(['MIDCPNIFTY', 'FINNIFTY','NIFTYIT','NIFTYNXT50','NIFTYPSUBANK','NIFTYINFRA','NIFTYMETAL','NIFTYPHARMA','NIFTYMEDIA','NIFTYAUTO','NIFTYCONSUMPTION','NIFTYENERGY','NIFTYFMCG','NIFTYHEALTHCARE'])].reset_index(drop=True)
+        # most_active['YF_Symbol'] = most_active['Symbol'].apply(lambda x: f'{x}.NS' if x not in ['^NSEI', '^NSEBANK'] else x)
+        most_active['YF_Symbol'] = most_active['Symbol'].apply(lambda x: '^NSEI' if x == 'NIFTY' else '^NSEBANK' if x == 'BANKNIFTY' else f'{x}.NS')
+        most_active = most_active.sort_values(by='Value (? Lakhs) - Total', ascending=False).reset_index(drop=True)
+        most_active = most_active.head(top_n)
+    else:
+        print(f"File {file_name} does not exist.")
+        
+    symbols = most_active['Symbol'].tolist()
+    yf_symbols = most_active['YF_Symbol'].tolist()
+    return symbols, yf_symbols
+
+symbols , yf_symbols = get_symbols(dt,top_n=17)
 
 
 for symbol in symbols:
@@ -39,13 +62,19 @@ def load_atm_chain(symbol):
     print(f"ATM data for {symbol} loaded successfully.")
     return chain
 
+# Create pipeline for underlying data and option chain data
 
-df = load_enriched_option_chain('NIFTY')
+# Downloading underlying data and adding features 
+# getdata_vbt(yf_symbol, period='10y', interval='1d')
+get_underlying_data_vbt(yf_symbols, period='10y', interval='1d')  # Download underlying data
+add_features(yf_symbols)  # Add features to the underlying data
+# Feature Engineering
+
+add_features(['VEDL'])
 
 
-x = df.query('is_atm_strike == "Y"')
+symbols
 
-df.columns
+# Load the enriched option chain data
 
-# df.loc[:,['Expiry','call_iv','put_iv','spot_price','expiry_days','rate']]['Expiry']== '2023-10-26'
-x.loc[:,['Expiry','call_iv','put_iv','spot_price','expiry_days','rate','atm_strike_price','strike_price','call_ltp','put_ltp']]
+
