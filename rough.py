@@ -38,3 +38,19 @@ symbols , yf_symbols = get_symbols(dt,top_n=17)
 
 
 symbols
+
+
+
+
+# Add these lines at the very top of your script for auto-reloading modules in Jupyter/IPython environments
+
+try:
+    from IPython import get_ipython
+    ipython = get_ipython()
+    if ipython is not None:
+        ipython.run_line_magic('load_ext', 'autoreload')
+        ipython.run_line_magic('autoreload', '2')
+except Exception:
+    pass
+
+# ...existing code...

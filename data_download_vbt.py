@@ -3,6 +3,8 @@ import pandas as pd
 import numpy as np
 import os
 import json
+from datetime import datetime
+import time
 
 
 # symbols = ['^NSEI', '^NSEBANK', 'RELIANCE.NS', 'TATAMOTORS.NS', 'HDFCBANK.NS', 'ICICIBANK.NS', 'INFY.NS', 'TCS.NS','AXISBANK.NS','BAJFINANCE.NS']
@@ -52,8 +54,13 @@ def get_underlying_data_vbt(symbols, period='20y', interval='1d'):
             existing_data = pd.read_csv(file_path, parse_dates=['Date'])
             if not existing_data.empty:
                 last_date = existing_data['Date'].max()
+                today = pd.to_datetime(datetime.now().date())
+                if pd.to_datetime(last_date).date() == today.date():
+                    start = pd.to_datetime(last_date).strftime('%Y-%m-%d')
+                else:
+                    start = (pd.to_datetime(last_date) + pd.Timedelta(days=1)).strftime('%Y-%m-%d')
                 # Download only data after last_date
-                start = (pd.to_datetime(last_date-2) + pd.Timedelta(days=1)).strftime('%Y-%m-%d')
+                # start = (pd.to_datetime(last_date) + pd.Timedelta(days=1)).strftime('%Y-%m-%d')
                 Close = vbt.YFData.download(symbol, start=start, interval=interval).get("Close")
                 High = vbt.YFData.download(symbol, start=start, interval=interval).get("High")
                 Low = vbt.YFData.download(symbol, start=start, interval=interval).get("Low")

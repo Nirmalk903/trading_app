@@ -1,3 +1,15 @@
+
+try:
+    from IPython import get_ipython
+    ipython = get_ipython()
+    if ipython is not None:
+        ipython.run_line_magic('load_ext', 'autoreload')
+        ipython.run_line_magic('autoreload', '2')
+except Exception:
+    pass
+
+
+
 import pandas as pd
 import numpy as np
 from Options_Utility import highlight_rows  # Placeholder for future implementation
