@@ -7,23 +7,57 @@ from datetime import datetime
 import time
 
 
-# symbols = ['^NSEI', '^NSEBANK', 'RELIANCE.NS', 'TATAMOTORS.NS', 'HDFCBANK.NS', 'ICICIBANK.NS', 'INFY.NS', 'TCS.NS','AXISBANK.NS','BAJFINANCE.NS']
 
-def getdata_vbt(symbol, period='20y', interval='1d'):
+
+def get_symbols(dt,top_n=17):
+    dt = dt.strftime('%d-%b-%Y')
+    nifty_fity_path = os.path.join('./Nifty_Fifty', "MW-NIFTY-50.csv")
+    if os.path.exists(nifty_fity_path):
+        nifty_fifty = pd.read_csv(nifty_fity_path)
+        nifty_symbols = nifty_fifty['SYMBOL \n'].tolist()
+        liquid_symbols = nifty_symbols + ['NIFTY', 'BANKNIFTY']
+    else:
+        print(f"File {nifty_fity_path} does not exist.")
+    
+    file_name = f'LA-MOST-ACTIVE-UNDERLYING-{dt}.csv'
+    file_path = os.path.join('./Most_Active_Underlying', file_name)
+    if os.path.exists(file_path):
+        most_active = pd.read_csv(file_path)
+        # print(most_active.head())
+        most_active = most_active[~most_active['Symbol'].isin(['MIDCPNIFTY', 'FINNIFTY','NIFTYIT','NIFTYNXT50','NIFTYPSUBANK','NIFTYINFRA','NIFTYMETAL','NIFTYPHARMA','NIFTYMEDIA','NIFTYAUTO','NIFTYCONSUMPTION','NIFTYENERGY','NIFTYFMCG','NIFTYHEALTHCARE'])].reset_index(drop=True)
+        most_active = most_active[most_active['Symbol'].isin(liquid_symbols)].reset_index(drop=True)
+        most_active['YF_Symbol'] = most_active['Symbol'].apply(lambda x: '^NSEI' if x == 'NIFTY' else '^NSEBANK' if x == 'BANKNIFTY' else f'{x}.NS')
+        most_active = most_active.sort_values(by='Value (₹ Lakhs) - Total', ascending=False).reset_index(drop=True)
+        most_active = most_active.head(top_n)
+    else:
+        print(f"File {file_name} does not exist.")
+        
+    symbols = most_active['Symbol'].tolist()
+    yf_symbols = most_active['YF_Symbol'].tolist()
+    return symbols, yf_symbols
+
+
+
+
+
+def getdata_vbt(symbols, period='20y', interval='1d'):
+    
+    yf_symbol = ['^NSEI' if symbol == 'NIFTY' else '^NSEBANK' if symbol == 'BANKNIFTY' else f'{symbol}.NS' for symbol in symbols]
     
     for symbol in symbols:
         print(f'Loading data for {symbol}')
+        yf_symbol = "^NSEI" if symbol == 'NIFTY' else "^NSEBANK" if symbol == 'BANKNIFTY' else f'{symbol}.NS'
         
         new_dir = f'./Underlying_data_vbt'
         os.makedirs(new_dir, exist_ok=True)
         file_name = f'{symbol}_{interval}.csv'
         file_path = os.path.join('./Underlying_data_vbt', file_name)
         
-        Close = vbt.YFData.download(symbol, period=period, interval=interval).get("Close")
-        High = vbt.YFData.download(symbol, period=period, interval=interval).get("High")
-        Low = vbt.YFData.download(symbol, period=period, interval=interval).get("Low")
-        Open = vbt.YFData.download(symbol, period=period, interval=interval).get("Open")
-        Volume = vbt.YFData.download(symbol, period=period, interval=interval).get("Volume")
+        Close = vbt.YFData.download(yf_symbol, period=period, interval=interval).get("Close")
+        High = vbt.YFData.download(yf_symbol, period=period, interval=interval).get("High")
+        Low = vbt.YFData.download(yf_symbol, period=period, interval=interval).get("Low")
+        Open = vbt.YFData.download(yf_symbol, period=period, interval=interval).get("Open")
+        Volume = vbt.YFData.download(yf_symbol, period=period, interval=interval).get("Volume")
         
         data = pd.concat([Close, High, Low, Open, Volume], axis=1)
         data.columns = ['Close', 'High', 'Low', 'Open', 'Volume']
@@ -38,12 +72,10 @@ def getdata_vbt(symbol, period='20y', interval='1d'):
     return None
 
 
-
-# symbols = ['^NSEI', '^NSEBANK', 'RELIANCE.NS', 'TATAMOTORS.NS', 'HDFCBANK.NS', 'ICICIBANK.NS', 'INFY.NS', 'TCS.NS','AXISBANK.NS','BAJFINANCE.NS']
-
 def get_underlying_data_vbt(symbols, period='20y', interval='1d'):
     for symbol in symbols:
         print(f'Loading data for {symbol}')
+        yf_symbol = '^NSEI' if symbol == 'NIFTY' else "^NSEBANK" if symbol == 'BANKNIFTY' else f'{symbol}.NS'
         new_dir = f'./Underlying_data_vbt'
         os.makedirs(new_dir, exist_ok=True)
         file_name = f'{symbol}_{interval}.csv'
@@ -61,11 +93,11 @@ def get_underlying_data_vbt(symbols, period='20y', interval='1d'):
                     start = (pd.to_datetime(last_date) + pd.Timedelta(days=1)).strftime('%Y-%m-%d')
                 # Download only data after last_date
                 # start = (pd.to_datetime(last_date) + pd.Timedelta(days=1)).strftime('%Y-%m-%d')
-                Close = vbt.YFData.download(symbol, start=start, interval=interval).get("Close")
-                High = vbt.YFData.download(symbol, start=start, interval=interval).get("High")
-                Low = vbt.YFData.download(symbol, start=start, interval=interval).get("Low")
-                Open = vbt.YFData.download(symbol, start=start, interval=interval).get("Open")
-                Volume = vbt.YFData.download(symbol, start=start, interval=interval).get("Volume")
+                Close = vbt.YFData.download(yf_symbol, start=start, interval=interval).get("Close")
+                High = vbt.YFData.download(yf_symbol, start=start, interval=interval).get("High")
+                Low = vbt.YFData.download(yf_symbol, start=start, interval=interval).get("Low")
+                Open = vbt.YFData.download(yf_symbol, start=start, interval=interval).get("Open")
+                Volume = vbt.YFData.download(yf_symbol, start=start, interval=interval).get("Volume")
                 new_data = pd.concat([Close, High, Low, Open, Volume], axis=1)
                 new_data.columns = ['Close', 'High', 'Low', 'Open', 'Volume']
                 new_data.reset_index(inplace=True)
@@ -81,11 +113,11 @@ def get_underlying_data_vbt(symbols, period='20y', interval='1d'):
                     print(f"No new data for {symbol}.")
             else:
                 # If file exists but is empty, download all data
-                Close = vbt.YFData.download(symbol, period=period, interval=interval).get("Close")
-                High = vbt.YFData.download(symbol, period=period, interval=interval).get("High")
-                Low = vbt.YFData.download(symbol, period=period, interval=interval).get("Low")
-                Open = vbt.YFData.download(symbol, period=period, interval=interval).get("Open")
-                Volume = vbt.YFData.download(symbol, period=period, interval=interval).get("Volume")
+                Close = vbt.YFData.download(yf_symbol, period=period, interval=interval).get("Close")
+                High = vbt.YFData.download(yf_symbol, period=period, interval=interval).get("High")
+                Low = vbt.YFData.download(yf_symbol, period=period, interval=interval).get("Low")
+                Open = vbt.YFData.download(yf_symbol, period=period, interval=interval).get("Open")
+                Volume = vbt.YFData.download(yf_symbol, period=period, interval=interval).get("Volume")
                 data = pd.concat([Close, High, Low, Open, Volume], axis=1)
                 data.columns = ['Close', 'High', 'Low', 'Open', 'Volume']
                 data.reset_index(inplace=True)
@@ -95,11 +127,11 @@ def get_underlying_data_vbt(symbols, period='20y', interval='1d'):
                 print(f"Data for {symbol} saved successfully.")
         else:
             # If file does not exist, download all data
-            Close = vbt.YFData.download(symbol, period=period, interval=interval).get("Close")
-            High = vbt.YFData.download(symbol, period=period, interval=interval).get("High")
-            Low = vbt.YFData.download(symbol, period=period, interval=interval).get("Low")
-            Open = vbt.YFData.download(symbol, period=period, interval=interval).get("Open")
-            Volume = vbt.YFData.download(symbol, period=period, interval=interval).get("Volume")
+            Close = vbt.YFData.download(yf_symbol, period=period, interval=interval).get("Close")
+            High = vbt.YFData.download(yf_symbol, period=period, interval=interval).get("High")
+            Low = vbt.YFData.download(yf_symbol, period=period, interval=interval).get("Low")
+            Open = vbt.YFData.download(yf_symbol, period=period, interval=interval).get("Open")
+            Volume = vbt.YFData.download(yf_symbol, period=period, interval=interval).get("Volume")
             data = pd.concat([Close, High, Low, Open, Volume], axis=1)
             data.columns = ['Close', 'High', 'Low', 'Open', 'Volume']
             data.reset_index(inplace=True)
@@ -109,3 +141,5 @@ def get_underlying_data_vbt(symbols, period='20y', interval='1d'):
             print(f"Data for {symbol} saved successfully.")
 
     return None
+
+# get_underlying_data_vbt(['ITC'], period='10y', interval='1d')

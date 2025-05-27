@@ -216,6 +216,7 @@ class FeatureEngineering:
 def add_features(symbols, interval='1d'):
     for symbol in symbols:
         print(f'Loading data for {symbol}')
+        # yf_symbol = '^NSEI' if symbol == 'NIFTY' else "^NSEBANK" if symbol == 'BANKNIFTY' else f'{symbol}.NS'
         
         # Load the data
         data_path = f'./Underlying_data_vbt/{symbol}_{interval}.csv'
