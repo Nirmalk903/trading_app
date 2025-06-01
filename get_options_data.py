@@ -206,3 +206,21 @@ def enrich_option_chain(symbol):
     
     return None
 
+
+def load_enriched_option_chain(symbol):        
+    symbol = symbol.upper()
+    print(f'Loading option chain for {symbol}')
+    file_name = f'{symbol}_OptionChain_Enriched.json'
+    file_path = os.path.join('./OptionChainJSON_Enriched', file_name)
+    chain = pd.read_json(file_path, orient='records')
+    return chain
+
+
+def load_atm_chain(symbol):
+    symbol = symbol.upper()
+    print(f'Loading ATM data for {symbol}')
+    file_name = f'{symbol}_ATM_OptionChain.json'
+    file_path = os.path.join('./ATM_OptionChainJSON', file_name)
+    chain = pd.read_json(file_path, orient='records')
+    print(f"ATM data for {symbol} loaded successfully.")
+    return chain

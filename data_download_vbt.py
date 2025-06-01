@@ -5,6 +5,7 @@ import os
 import json
 from datetime import datetime
 import time
+import re
 
 
 
@@ -143,3 +144,16 @@ def get_underlying_data_vbt(symbols, period='20y', interval='1d'):
     return None
 
 # get_underlying_data_vbt(['ITC'], period='10y', interval='1d')
+
+
+
+def get_dates_from_most_active_files(folder='./Most_Active_Underlying'):
+    # Regex to extract date from filenames like LA-MOST-ACTIVE-UNDERLYING-23-May-2024.csv
+    date_pattern = re.compile(r'LA-MOST-ACTIVE-UNDERLYING-(\d{2}-[A-Za-z]{3}-\d{4})\.csv')
+    dates = []
+    for fname in os.listdir(folder):
+        match = date_pattern.match(fname)
+        if match:
+            dates.append(match.group(1))
+    dates_sorted = pd.to_datetime(sorted(dates, key=lambda x: datetime.strptime(x, "%d-%b-%Y")))
+    return dates_sorted
