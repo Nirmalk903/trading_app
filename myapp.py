@@ -7,14 +7,18 @@ from get_options_data import fetch_and_save_options_chain, enrich_option_chain,l
 from data_download_vbt import getdata_vbt, get_underlying_data_vbt, get_symbols,  get_dates_from_most_active_files
 from feature_engineering import add_features
 import matplotlib.pyplot as plt
-from plotting import plot_garch_vs_rsi
+from plotting import plot_garch_vs_rsi, plot_garch_vs_avg_iv
 
 # dt = datetime.now()
+
+get_dates_from_most_active_files()
 
 symbols = get_symbols(get_dates_from_most_active_files()[-1],top_n=17)[0]
 prev_symbols = get_symbols(get_dates_from_most_active_files()[-2],top_n=17)[0]
 new_symbols = set(symbols) - set(prev_symbols)
 symbol_excluded = set(prev_symbols) - set(symbols)
+
+# symbols = ['M&M']
 
 for _ in new_symbols:
     print(f"New symbol added: {_}") 
@@ -42,7 +46,9 @@ def create_analytics(symbols):
 create_analytics(symbols)
 
 
+
 # PLOTS *************************************
 plot_garch_vs_rsi(symbols)
+plot_garch_vs_avg_iv([s for s in symbols if s != 'ETERNAL'], options_expiry='26-Jun-2025')
 
-
+symbols

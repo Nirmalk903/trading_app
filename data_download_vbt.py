@@ -155,5 +155,8 @@ def get_dates_from_most_active_files(folder='./Most_Active_Underlying'):
         match = date_pattern.match(fname)
         if match:
             dates.append(match.group(1))
-    dates_sorted = pd.to_datetime(sorted(dates, key=lambda x: datetime.strptime(x, "%d-%b-%Y")))
-    return dates_sorted
+    # dates_sorted = pd.to_datetime(sorted(dates, key=lambda x: datetime.strptime(x, "%d-%b-%Y")))
+    return pd.to_datetime(sorted([datetime.strptime(d, "%d-%b-%Y") for d in dates]))
+    
+
+

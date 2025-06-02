@@ -53,4 +53,15 @@ try:
 except Exception:
     pass
 
+
+
+symbol = 'NIFTY'
+
+symbol = "^NSEI" if symbol == 'NIFTY' else "^NSEBANK" if symbol == 'BANKNIFTY' else f'{symbol}.NS'
+
+symbol
+
+
+
+
 # ...existing code...
