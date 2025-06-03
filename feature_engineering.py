@@ -235,9 +235,10 @@ def add_features(symbols, interval='1d'):
         # Add GARCH volatility
         data['garch_vol'] = garch_vol(symbol).values
         data['garch_vol'] = data['garch_vol'].bfill()
-        data['garch_vol_pct'] = data['garch_vol'].pct_change()
+        data['garch_vol_pct'] = data['garch_vol'].diff()
         # Calculate percentiles
         data['garch_vol_percentile'] = [np.round(percentileofscore(data['garch_vol'], i),0) for i in data['garch_vol'] ]
+        data['garch_vol_percentile'] = data['garch_vol_percentile'].bfill()
     
         
         # Save the engineered features to a new CSV file

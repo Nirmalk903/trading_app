@@ -11,7 +11,6 @@ from plotting import plot_garch_vs_rsi, plot_garch_vs_avg_iv
 
 # dt = datetime.now()
 
-get_dates_from_most_active_files()
 
 symbols = get_symbols(get_dates_from_most_active_files()[-1],top_n=17)[0]
 prev_symbols = get_symbols(get_dates_from_most_active_files()[-2],top_n=17)[0]
@@ -25,7 +24,6 @@ for _ in new_symbols:
     
 for _ in symbol_excluded:
     print(f"Symbol excluded: {_}")
-
 
 
 def create_analytics(symbols):
@@ -44,7 +42,6 @@ def create_analytics(symbols):
 
 # Create analytics for the symbols
 create_analytics(symbols)
-
 
 
 # PLOTS *************************************

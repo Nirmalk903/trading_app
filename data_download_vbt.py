@@ -74,8 +74,8 @@ def getdata_vbt(symbols, period='20y', interval='1d'):
 
 
 def get_underlying_data_vbt(symbols, period='20y', interval='1d'):
-    for symbol in symbols:
-        print(f'Loading data for {symbol}')
+    for idx, symbol in enumerate(symbols):
+        print(f'Loading data for {int(idx)+1}: {symbol}')
         yf_symbol = '^NSEI' if symbol == 'NIFTY' else "^NSEBANK" if symbol == 'BANKNIFTY' else f'{symbol}.NS'
         new_dir = f'./Underlying_data_vbt'
         os.makedirs(new_dir, exist_ok=True)
@@ -139,7 +139,7 @@ def get_underlying_data_vbt(symbols, period='20y', interval='1d'):
             data['Date'] = pd.to_datetime(data['Date'], format='%Y-%m-%d', errors='coerce')
             data['Date'] = data['Date'].dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
             data.to_csv(file_path, index=False)
-            print(f"Data for {symbol} saved successfully.")
+            print(f"Data for {int(idx)+1}: {symbol} saved successfully.")
 
     return None
 

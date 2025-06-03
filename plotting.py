@@ -21,12 +21,19 @@ def plot_garch_vs_rsi(symbols, data_dir='./Engineered_data'):
             print(f"Required columns not found in {file_path}")
             continue
         last_row = df.iloc[-1]
+        garch_val = last_row['garch_vol_percentile']
+        rsi_val = last_row['RSI']
+
+        if pd.isna(garch_val) or pd.isna(rsi_val):
+            print(f"Skipping {symbol} due to NaN values.")
+            continue
         records.append({
             'symbol': symbol,
-            'garch_vol_percentile': int(last_row['garch_vol_percentile']),
-            'RSI': int(last_row['RSI'])
-        })
+            'garch_vol_percentile': int(garch_val),
+            'RSI': int(rsi_val)
+        })  
     df1 = pd.DataFrame(records)
+    print(df1)
 
     plt.figure(figsize=(8, 6))
     # Plot all except NIFTY and BANKNIFTY
@@ -52,7 +59,7 @@ def plot_garch_vs_rsi(symbols, data_dir='./Engineered_data'):
     plt.grid(True)
     plt.savefig('garch_vs_rsi_scatter_plot.png')
     plt.close()
-    return None
+    return df1
 
 
 
