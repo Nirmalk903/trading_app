@@ -27,16 +27,17 @@ def economic_calendar():
     
     return df
 
-
+economic_calendar()
 # The below function fetches the earnings calendar for a list of stock tickers using the yfinance library.
 
 
 def stock_earnings_calendar(tickers):
     from_date = pm.now().subtract(days=1)  # .strftime('%d/%m/%Y')
     to_date = pm.now().add(days=90)  # .strftime('%d/%m/%Y')
+    yf_tickers = ['^NSEI' if ticker == 'NIFTY' else '^NSEBANK' if ticker == 'BANKNIFTY' else f'{ticker}.NS' for ticker in tickers]
 
     ls = []
-    for ticker in tickers:
+    for ticker in yf_tickers:
         # print(f"Fetching earnings calendar for {ticker} from {from_date} to {to_date}")
         try:
             # Fetch the stock data

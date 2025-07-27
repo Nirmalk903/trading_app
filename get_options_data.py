@@ -3,7 +3,8 @@ import numpy as np
 import requests
 from tenacity import retry, stop_after_attempt, stop_after_delay, wait_fixed, wait_random, retry
 from functools import lru_cache
-from datetime import datetime, timedelta
+from datetime import datetime as dt_time
+from datetime import timedelta
 from Options_Utility import atm_strike, tau
 from Options_Utility import highlight_rows  # Placeholder for future implementation
 from black_scholes_functions import *
@@ -193,7 +194,7 @@ def enrich_option_chain(symbol):
     os.makedirs(atm_dir, exist_ok=True)
     atm_file_path = os.path.join(atm_dir, f'{symbol}_ATM_OptionChain.json')
     chain_v = chain.copy()
-    chain_v['timestamp'] = datetime.now().strftime('%Y-%m-%d %H:%M')
+    chain_v['timestamp'] = dt_time.now().strftime('%Y-%m-%d %H:%M')
     if os.path.exists(atm_file_path):
         existing_data = pd.read_json(atm_file_path, orient='records')
     else:

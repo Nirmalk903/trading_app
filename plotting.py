@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 import os
 import matplotlib.pyplot as plt
+from datetime import datetime as dt_time
+
 
 
   
@@ -10,6 +12,12 @@ def plot_garch_vs_rsi(symbols, data_dir='./Engineered_data'):
     Reads feature files for each symbol and creates a scatter plot of GARCH Vol Percentile vs RSI.
     Highlights NIFTY and BANKNIFTY markers in different colors.
     """
+    dt = dt_time.now().strftime('%Y-%m-%d')
+    image_dir='./Images'
+    if not os.path.exists(image_dir):
+        print(f"Creating directory: {image_dir}")   
+        os.makedirs(image_dir)
+    
     records = []
     for symbol in symbols:
         file_path = os.path.join(data_dir, f"{symbol}_1d_features.json")
@@ -57,9 +65,11 @@ def plot_garch_vs_rsi(symbols, data_dir='./Engineered_data'):
     plt.title('GARCH Vol Percentile vs RSI')
     plt.legend()
     plt.grid(True)
-    plt.savefig('garch_vs_rsi_scatter_plot.png')
+    save_path = os.path.join(image_dir, f'garch_vs_rsi_{dt}.png')
+    plt.savefig(save_path)
+    print(f"Saving plot to {save_path}")
     plt.close()
-    return df1
+    return None
 
 
 

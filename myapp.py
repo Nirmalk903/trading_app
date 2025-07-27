@@ -8,6 +8,7 @@ from data_download_vbt import getdata_vbt, get_underlying_data_vbt, get_symbols,
 from feature_engineering import add_features
 import matplotlib.pyplot as plt
 from plotting import plot_garch_vs_rsi, plot_garch_vs_avg_iv
+import time
 
 # dt = datetime.now()
 
@@ -26,23 +27,31 @@ for _ in symbol_excluded:
     print(f"Symbol excluded: {_}")
 
 
+
 def create_analytics(symbols):
-    
     for symbol in symbols:
         try:
-            get_underlying_data_vbt([symbol], period='10y', interval='1d')  # Download underlying data
-            add_features([symbol])#Enrich the data with greeks and other calculations and save it to a JSON file
-            # Fetch and save options chain data
-            fetch_and_save_options_chain(symbol) #Download data from NSE, formats it into an option chain and save it to a JSON file
+            get_underlying_data_vbt([symbol], period='10y', interval='1d')
+            add_features([symbol])
+            # Fetch and save options chain data with timeout
+            start_time = time.time()
+            try:
+                fetch_and_save_options_chain(symbol)
+            except Exception as e:
+                print(f"Error fetching option chain for {symbol}: {e}")
+            elapsed = time.time() - start_time
+            timeout = 120  # seconds
+            if elapsed > timeout:  # 120 seconds timeout
+                print(f"Skipping {symbol} option chain: took more than {timeout} seconds.")
+                continue
+            
             enrich_option_chain(symbol)
         except Exception as e:
             print(f"Error fetching data for {symbol}: {e}")
-    
+
     return "Analytics created successfully for all symbols."
 
-# Create analytics for the symbols
 create_analytics(symbols)
-
 
 # PLOTS *************************************
 plot_garch_vs_rsi(symbols)

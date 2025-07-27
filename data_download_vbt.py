@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import os
 import json
-from datetime import datetime
+from datetime import datetime as dt_time
 import time
 import re
 
@@ -87,7 +87,7 @@ def get_underlying_data_vbt(symbols, period='20y', interval='1d'):
             existing_data = pd.read_csv(file_path, parse_dates=['Date'])
             if not existing_data.empty:
                 last_date = existing_data['Date'].max()
-                today = pd.to_datetime(datetime.now().date())
+                today = pd.to_datetime(dt_time.now().date())
                 if pd.to_datetime(last_date).date() == today.date():
                     start = pd.to_datetime(last_date).strftime('%Y-%m-%d')
                 else:
@@ -156,7 +156,7 @@ def get_dates_from_most_active_files(folder='./Most_Active_Underlying'):
         if match:
             dates.append(match.group(1))
     # dates_sorted = pd.to_datetime(sorted(dates, key=lambda x: datetime.strptime(x, "%d-%b-%Y")))
-    return pd.to_datetime(sorted([datetime.strptime(d, "%d-%b-%Y") for d in dates]))
+    return pd.to_datetime(sorted([dt_time.strptime(d, "%d-%b-%Y") for d in dates]))
     
 
 
