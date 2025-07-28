@@ -2,9 +2,9 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 from PIL import Image
-from data_download_vbt import get_symbols, get_dates_from_most_active_files
 from feature_engineering import add_features
 from plotting import plot_garch_vs_rsi, plot_garch_vs_avg_iv
+from data_download_vbt import getdata_vbt, get_underlying_data_vbt, get_symbols,  get_dates_from_most_active_files
 import os
 import time
 from datetime import datetime as dt_time
@@ -60,6 +60,7 @@ if st.button("Run Analytics"):
             skipped.append(symbol)
             my_bar.progress((i + 1) / total, text=f"Skipping {symbol} (recently processed)")
             continue
+        get_underlying_data_vbt([symbol], period='10y', interval='1d')
         add_features([symbol])
         mark_run(symbol)
         my_bar.progress((i + 1) / total, text=f"Processing {symbol} ({i+1}/{total})")

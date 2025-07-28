@@ -48,7 +48,7 @@ def fetch_and_enrich(symbol):
 def create_underlying_analytics(symbols):
     get_underlying_data_vbt(symbols, period='10y', interval='1d')
     add_features(symbols)
-    plot_garch_vs_rsi(symbols)
+    # plot_garch_vs_rsi(symbols)
     return "Analytics created successfully for all symbols."
 
 def create_options_analytics(symbols, max_workers=7):
@@ -67,7 +67,7 @@ if __name__ == "__main__":
     create_underlying_analytics(symbols)
     # stock_earnings_calendar(symbols)
     create_options_analytics(symbols, max_workers=4)
-    create_options_analytics(symbols[9:], max_workers=len(symbols[9:]))
+    # create_options_analytics(symbols[9:], max_workers=len(symbols[9:]))
 
 
 # fetch_and_enrich('SBIN')  # Example of fetching and enriching a specific symbol
