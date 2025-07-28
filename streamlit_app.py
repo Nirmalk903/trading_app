@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-import matplotlib as plt
+# import matplotlib as plt
 from PIL import Image
 from feature_engineering import add_features
 from plotting import plot_garch_vs_rsi, plot_garch_vs_avg_iv
