@@ -137,6 +137,8 @@ class FeatureEngineering:
     def rsi(self,X):
         rsi = vbt.RSI.run(X['Close'], window=14, short_name='RSI')
         X['RSI'] = rsi.rsi
+        X['RSI_percentile'] = [np.round(percentileofscore(X['RSI'], i),0) for i in X['RSI'] ]
+        X['RSI_percentile'] = X['RSI_percentile'].bfill()
         return X
     
     def bollinger_bands(self,X, period=20, std=2):
