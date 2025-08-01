@@ -7,9 +7,6 @@ from datetime import datetime as dt_time
 import time
 import re
 
-
-
-
 def get_symbols(dt,top_n=17):
     dt = dt.strftime('%d-%b-%Y')
     nifty_fity_path = os.path.join('./Nifty_Fifty', "MW-NIFTY-50.csv")
@@ -36,9 +33,6 @@ def get_symbols(dt,top_n=17):
     symbols = most_active['Symbol'].tolist()
     yf_symbols = most_active['YF_Symbol'].tolist()
     return symbols, yf_symbols
-
-
-
 
 
 def getdata_vbt(symbols, period='20y', interval='1d'):

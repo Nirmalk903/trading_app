@@ -242,6 +242,11 @@ def add_features(symbols, interval='1d'):
         data['garch_vol_percentile'] = [np.round(percentileofscore(data['garch_vol'], i),0) for i in data['garch_vol'] ]
         data['garch_vol_percentile'] = data['garch_vol_percentile'].bfill()
     
+        # Ensure 'Date' is a column, not index
+        if 'Date' not in data.columns:
+            data.reset_index(inplace=True)
+        # Convert 'Date' to string for JSON serialization
+        data['Date'] = data['Date'].dt.strftime('%Y-%m-%d')
         
         # Save the engineered features to a new CSV file
         new_dir = f'./Engineered_data'
@@ -255,7 +260,7 @@ def add_features(symbols, interval='1d'):
     return None
 
 
-
+add_features(symbols=['NIFTY'], interval='1d')
 
 def update_features(symbols, interval='1d'):
     for symbol in symbols:
@@ -313,3 +318,5 @@ def update_features(symbols, interval='1d'):
         print(f"Feature engineered data for {symbol} saved successfully.")
 
     return combined_data
+
+

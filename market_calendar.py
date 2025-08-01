@@ -33,7 +33,7 @@ economic_calendar()
 
 def stock_earnings_calendar(tickers):
     from_date = pm.now().subtract(days=1)  # .strftime('%d/%m/%Y')
-    to_date = pm.now().add(days=90)  # .strftime('%d/%m/%Y')
+    to_date = pm.now().add(days=120)  # .strftime('%d/%m/%Y')
     yf_tickers = ['^NSEI' if ticker == 'NIFTY' else '^NSEBANK' if ticker == 'BANKNIFTY' else f'{ticker}.NS' for ticker in tickers]
 
     ls = []
@@ -50,7 +50,7 @@ def stock_earnings_calendar(tickers):
 
             # Format and clean up the DataFrame
             earnings.reset_index(inplace=True)
-            earnings.columns = ['Date', 'EPS Estimate', 'Reported EPS', 'Surprise (%)']
+            earnings.columns = ['Date', 'EPS Estimate', 'Reported EPS', 'Surprise (%)',"_"]
             earnings['Date'] = pd.to_datetime(earnings['Date'], errors='coerce')
             earnings = earnings.query("Date >= @from_date & Date <= @to_date").reset_index(drop=True)
             earnings = earnings.sort_values(by='Date').reset_index(drop=True)
@@ -70,7 +70,7 @@ def stock_earnings_calendar(tickers):
     
     return df
 
-
+stock_earnings_calendar(['NIFTY', 'BANKNIFTY', 'RELIANCE', 'TCS', 'INFY'])
 
 # The below code fetches the latest news articles related to Nifty50 stocks using the NewsAPI.
 # It requires an API key from NewsAPI or a similar service. The code fetches the latest news articles and prints the title, source, publication date, and URL of each article.
