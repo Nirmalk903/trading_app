@@ -4,7 +4,7 @@ import os
 import pickle
 from arch import arch_model
 
-symbols = ['^NSEI', '^NSEBANK', 'RELIANCE.NS', 'TATAMOTORS.NS', 'HDFCBANK.NS', 'ICICIBANK.NS', 'INFY.NS', 'TCS.NS', 'AXISBANK.NS', 'BAJFINANCE.NS']
+# symbols = ['^NSEI', '^NSEBANK', 'RELIANCE.NS', 'TATAMOTORS.NS', 'HDFCBANK.NS', 'ICICIBANK.NS', 'INFY.NS', 'TCS.NS', 'AXISBANK.NS', 'BAJFINANCE.NS']
 
 def egarch(symbols):
     """Load data for each symbol, fit an EGARCH model, and save the optimized model."""
