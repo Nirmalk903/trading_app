@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
-from market_calendar import stock_earnings_calendar
-import investpy
+# from market_calendar import stock_earnings_calendar
 from PIL import Image
 from feature_engineering import add_features
 from plotting import plot_garch_vs_rsi, plot_garch_vs_avg_iv
@@ -13,6 +12,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import mplfinance as mpf
 import plotly.graph_objects as go
+import numpy as np
 
 
 st.title("Trading Analytics Dashboard")
@@ -92,16 +92,14 @@ hist_symbol = st.selectbox(
 
 # Select number of days to show (period)
 period_options = {
-    "1 Week": 7,
-    "1 Month": 30,
-    "3 Months": 90,
     "6 Months": 180,
     "1 Year": 365,
     "2 Years": 730,
     "All": None
 }
-
-selected_period_label = st.selectbox("Select period", list(period_options.keys()), index=2)
+selected_period_label = st.selectbox(
+    "Select period", list(period_options.keys()), index=2
+)
 num_days = period_options[selected_period_label]
 
 if st.button("Show Historical Chart"):
@@ -110,103 +108,101 @@ if st.button("Show Historical Chart"):
         df_hist = pd.read_json(feature_file, orient='records', lines=True)
         df_hist = df_hist.sort_values("Date")
         df_hist["Date"] = pd.to_datetime(df_hist["Date"])
+        # Calculate moving averages
+        df_hist["MA_10"] = df_hist["Close"].rolling(window=10).mean()
+        df_hist["MA_50"] = df_hist["Close"].rolling(window=50).mean()
+        df_hist["MA_100"] = df_hist["Close"].rolling(window=100).mean()
+        
         df_hist_recent = df_hist.tail(num_days) if num_days is not None else df_hist
 
-        # Calculate moving averages
-        df_hist_recent["MA_10"] = df_hist_recent["Close"].rolling(window=10).mean()
-        df_hist_recent["MA_50"] = df_hist_recent["Close"].rolling(window=50).mean()
-        df_hist_recent["MA_100"] = df_hist_recent["Close"].rolling(window=100).mean()
+        # Check for minimum data length
+        min_rows = 100
+        if len(df_hist_recent) < min_rows:
+            st.warning(f"Not enough data to plot all indicators (need at least {min_rows} rows, got {len(df_hist_recent)}).")
+        else:
+            df_mpf = df_hist_recent.set_index("Date")[["Open", "High", "Low", "Close", "Volume"]]
 
-        # Prepare DataFrame for mplfinance
-        df_mpf = df_hist_recent.set_index("Date")[["Open", "High", "Low", "Close", "Volume"]]
+            apds = []
+            # Only add plots if the data is not all-NaN
+            if not np.all(np.isnan(df_hist_recent["wCPR"].values)):
+                apds.append(mpf.make_addplot(df_hist_recent["wCPR"].values, panel=0,
+                                             type='scatter', markersize=0.5, color='blue', marker='o', ylabel='wCPR'))
+            if not np.all(np.isnan(df_hist_recent["MA_10"].values)):
+                apds.append(mpf.make_addplot(df_hist_recent["MA_10"].values, panel=0,
+                                             type='line', color='green', width=1.2, ylabel='MA 10'))
+            if not np.all(np.isnan(df_hist_recent["MA_50"].values)):
+                apds.append(mpf.make_addplot(df_hist_recent["MA_50"].values, panel=0,
+                                             type='line', color='orange', width=1.2, ylabel='MA 50'))
+            if not np.all(np.isnan(df_hist_recent["MA_100"].values)):
+                apds.append(mpf.make_addplot(df_hist_recent["MA_100"].values, panel=0,
+                                             type='line', color='purple', width=1.2, ylabel='MA 100'))
+            if not np.all(np.isnan(df_hist_recent["RSI"].values)):
+                apds.append(mpf.make_addplot(df_hist_recent["RSI"].values, panel=1,
+                                             type='line', color='grey', width=1.2, ylabel='RSI'))
+            if not np.all(np.isnan(df_hist_recent["garch_vol"].values)):
+                apds.append(mpf.make_addplot(df_hist_recent["garch_vol"].values, panel=2,
+                                             type='bar', color='red', width=1.2, ylabel='Volatility'))
+            if not np.all(np.isnan(df_hist_recent["garch_vol_percentile"].values)):
+                apds.append(mpf.make_addplot(df_hist_recent["garch_vol_percentile"].values, panel=3,
+                                             type='line', color='orange', width=1.2, ylabel='VolP'))
 
-        apds = [
-            # wCPR scatter
-            mpf.make_addplot(df_hist_recent["wCPR"].values, panel=0,
-                             type='scatter', markersize=0.5, color='blue', marker='o', ylabel='wCPR'),
-            # 10-day MA
-            mpf.make_addplot(df_hist_recent["MA_10"].values, panel=0,
-                             type='line', color='green', width=1.2, ylabel='MA 10'),
-            # 50-day MA
-            mpf.make_addplot(df_hist_recent["MA_50"].values, panel=0,
-                             type='line', color='orange', width=1.2, ylabel='MA 50'),
-            # 100-day MA
-            mpf.make_addplot(df_hist_recent["MA_100"].values, panel=0,
-                             type='line', color='purple', width=1.2, ylabel='MA 100'),
-            # RSI line
-            mpf.make_addplot(df_hist_recent["RSI"].values, panel=1,
-                             type='line', markersize=0.5, color='grey', marker='o', ylabel='RSI'),
-            # GARCH Volatility bar
-            mpf.make_addplot(df_hist_recent["garch_vol"].values, panel=2,
-                             type='bar', markersize=1.5, color='red', marker='o', ylabel='Volatility'),
-            # GARCH Vol Percentile line
-            mpf.make_addplot(df_hist_recent["garch_vol_percentile"].values, panel=3,
-                             type='line', markersize=0.5, color='orange', marker='o', ylabel='Vol Percentile')
-        ]
+            # Add squared returns to panel 4 (5th panel, index 4) using 'Returns' column from engineered data
+            if "Returns" in df_hist_recent.columns:
+                squared_returns = df_hist_recent["Returns"] ** 2
+                if not np.all(np.isnan(squared_returns.values)):
+                    apds.append(mpf.make_addplot(
+                        squared_returns.values,
+                        panel=4,
+                        type='line',
+                        color='brown',
+                        width=1.2,
+                        ylabel='Squared Ret'
+                    ))
 
-        panel_ratios = (6, 1, 1, 1)
+            panel_ratios = (6, 1, 1, 1, 1)  # Add extra panel for squared returns
 
-        fig, axlist = mpf.plot(
-            df_mpf,
-            type='candle',
-            style='yahoo',
-            addplot=apds,
-            panel_ratios=panel_ratios,
-            returnfig=True,
-            figsize=(10, 8)
-        )
+            fig, axlist = mpf.plot(
+                df_mpf,
+                type='candle',
+                style='yahoo',
+                addplot=apds,
+                panel_ratios=panel_ratios,
+                returnfig=True,
+                figsize=(10, 10)
+            )
 
-        # Add symbol name to top left of OHLC panel
-        axlist[0].text(
-            0.01, 0.98, f"{hist_symbol}",
-            transform=axlist[0].transAxes,
-            fontsize=16,
-            fontweight='bold',
-            va='top',
-            ha='left',
-            color='navy',
-            bbox=dict(facecolor='white', alpha=0.7, edgecolor='none', boxstyle='round,pad=0.3')
-        )
+            # Add symbol name to center top of OHLC panel
+            axlist[0].text(
+                0.5, 0.98, f"{hist_symbol}",
+                transform=axlist[0].transAxes,
+                fontsize=16,
+                fontweight='bold',
+                va='top',
+                ha='center',
+                color='navy',
+                bbox=dict(facecolor='white', alpha=0.7, edgecolor='none', boxstyle='round,pad=0.3')
+            )
 
-        st.pyplot(fig, use_container_width=True)
-        # Optionally, show the table below
-        # st.write(df_hist_recent[["Date", "Open", "High", "Low", "Close", "Volume", "wCPR", "MA_10", "MA_50", "MA_100"]].reset_index(drop=True))
+            # Add custom legend for moving averages
+            ma_lines = []
+            ma_labels = []
+            if not np.all(np.isnan(df_hist_recent["MA_10"].values)):
+                ma_lines.append(axlist[0].plot([], [], color='green', linewidth=2)[0])
+                ma_labels.append('MA 10')
+            if not np.all(np.isnan(df_hist_recent["MA_50"].values)):
+                ma_lines.append(axlist[0].plot([], [], color='orange', linewidth=2)[0])
+                ma_labels.append('MA 50')
+            if not np.all(np.isnan(df_hist_recent["MA_100"].values)):
+                ma_lines.append(axlist[0].plot([], [], color='purple', linewidth=2)[0])
+                ma_labels.append('MA 100')
+
+            if ma_lines:
+                axlist[0].legend(ma_lines, ma_labels, loc='upper left')
+
+            st.pyplot(fig, use_container_width=True)
     else:
         st.warning(f"Feature file not found for {hist_symbol}: {feature_file}")
 
 # Upcoming Earnings, Dividends & Corporate Actions
 
-st.header("Upcoming Earnings, Dividends & Corporate Actions")
-
-# Use selected_symbols from your app's scope
-# symbols_in_scope = selected_symbols if selected_symbols else all_symbols
-symbols_in_scope = all_symbols
-
-# Earnings Calendar
-if st.button("Show Upcoming Earnings Calendar"):
-    earnings_df = stock_earnings_calendar(symbols_in_scope)
-    if not earnings_df.empty:
-        st.dataframe(earnings_df.reset_index(drop=True), use_container_width=True)
-    else:
-        st.info("No upcoming earnings found for selected symbols.")
-
-# Dividends & Corporate Actions Calendar using investpy
-if st.button("Show Upcoming Dividends & Corporate Actions"):
-    try:
-        # You can adjust country and date range as needed
-        country = "india"
-        from_date = pd.Timestamp.now().strftime('%d/%m/%Y')
-        to_date = (pd.Timestamp.now() + pd.Timedelta(days=120)).strftime('%d/%m/%Y')
-        actions_df = investpy.stocks.get_stocks_dividends(
-            country=country, from_date=from_date, to_date=to_date
-        )
-        # Filter for symbols in scope
-        actions_df = actions_df[actions_df['symbol'].str.upper().isin([s.upper() for s in symbols_in_scope])]
-        if not actions_df.empty:
-            st.dataframe(actions_df, use_container_width=True)
-        else:
-            st.info("No upcoming dividends or corporate actions found for selected symbols.")
-    except Exception as e:
-        st.error(f"Error fetching dividends/corporate actions: {e}")
-# To run: streamlit run app.py
 

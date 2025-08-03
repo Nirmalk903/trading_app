@@ -50,7 +50,7 @@ def stock_earnings_calendar(tickers):
 
             # Format and clean up the DataFrame
             earnings.reset_index(inplace=True)
-            earnings.columns = ['Date', 'EPS Estimate', 'Reported EPS', 'Surprise (%)',"_"]
+            earnings.columns = ['Date', 'EPS Estimate', 'Reported EPS', 'Surprise (%)',"A"]
             earnings['Date'] = pd.to_datetime(earnings['Date'], errors='coerce')
             earnings = earnings.query("Date >= @from_date & Date <= @to_date").reset_index(drop=True)
             earnings = earnings.sort_values(by='Date').reset_index(drop=True)
