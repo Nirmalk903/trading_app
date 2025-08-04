@@ -31,7 +31,7 @@ selected_symbols = st.multiselect(
     "Filter and Select Symbols", options=all_symbols, default=all_symbols
 )
 
-st.write(f"Selected symbols: {selected_symbols}")
+# st.write(f"Selected symbols: {selected_symbols}")
 
 # Caching functions
 def was_run_recently(symbol, cache_dir="./analytics_cache", max_age=3600):
