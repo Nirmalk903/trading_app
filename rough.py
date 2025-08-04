@@ -1,4 +1,3 @@
-
 import datetime as dt
 from nsepython import *
 from py_vollib.black_scholes.implied_volatility import implied_volatility
@@ -70,3 +69,17 @@ if __name__ == "__main__":
         print(s, v, "%")
 
 get_atm_option_iv("NSE:RELIANCE", "28-Aug-2025")  # Example usage
+
+
+
+
+import yfinance as yf
+
+ticker = yf.Ticker("RELIANCE.NS")
+news = ticker.news
+for item in news[:10]:
+    print(f"Title: {item.get('title', item.get('headline', 'No Title'))}")
+    print(f"Link: {item.get('link', 'No Link')}")
+    print(f"Published: {item.get('providerPublishTime', 'No Time')}")
+    print("-" * 80)
+
