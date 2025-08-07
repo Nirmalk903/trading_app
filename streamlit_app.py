@@ -34,11 +34,20 @@ selected_symbols = st.multiselect(
 # --- Feature Engineering Step (parallelized and cached) ---
 if st.button("Run Analytics"):
     st.info("Running feature engineering for selected symbols. Please wait...")
+    progress_bar = st.progress(0, text="Starting...")
+    total = len(selected_symbols)
+    results = []
+
     with st.spinner("Processing features..."):
-        # Parallel processing for speed
         with ThreadPoolExecutor() as executor:
-            list(executor.map(process_symbol, selected_symbols))
+            futures = []
+            for symbol in selected_symbols:
+                futures.append(executor.submit(process_symbol, symbol))
+            for i, future in enumerate(futures):
+                future.result()  # Wait for each to finish
+                progress_bar.progress((i + 1) / total, text=f"Processed {i + 1}/{total} symbols")
     st.success("Feature engineering completed for selected symbols!")
+    progress_bar.empty()
 
 # Plot GARCH vs RSI
 # st.header("GARCH Volatility Percentile vs RSI")
