@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 # from market_calendar import stock_earnings_calendar
 from PIL import Image
-from feature_engineering import add_features
+from feature_engineering import process_symbol  # <-- Import the new function
 from plotting import plot_garch_vs_rsi, plot_garch_vs_avg_iv
 from data_download_vbt import getdata_vbt, get_underlying_data_vbt, get_symbols,  get_dates_from_most_active_files
 import os
@@ -13,7 +13,7 @@ import matplotlib.dates as mdates
 import mplfinance as mpf
 import plotly.graph_objects as go
 import numpy as np
-
+from concurrent.futures import ThreadPoolExecutor  # <-- Import for parallel processing
 
 st.title("Trading Analytics Dashboard")
 
@@ -31,43 +31,14 @@ selected_symbols = st.multiselect(
     "Filter and Select Symbols", options=all_symbols, default=all_symbols
 )
 
-# st.write(f"Selected symbols: {selected_symbols}")
-
-# Caching functions
-def was_run_recently(symbol, cache_dir="./analytics_cache", max_age=3600):
-    """Return True if analytics for symbol was run in last max_age seconds."""
-    if not os.path.exists(cache_dir):
-        os.makedirs(cache_dir)
-    cache_file = os.path.join(cache_dir, f"{symbol}_last_run.txt")
-    if os.path.exists(cache_file):
-        with open(cache_file, "r") as f:
-            last_run = float(f.read().strip())
-        if time.time() - last_run < max_age:
-            return True
-    return False
-
-def mark_run(symbol, cache_dir="./analytics_cache"):
-    cache_file = os.path.join(cache_dir, f"{symbol}_last_run.txt")
-    with open(cache_file, "w") as f:
-        f.write(str(time.time()))
-
+# --- Feature Engineering Step (parallelized and cached) ---
 if st.button("Run Analytics"):
-    progress_text = "Running analytics. Please wait..."
-    my_bar = st.progress(0, text=progress_text)
-    total = len(selected_symbols)
-    skipped = []
-    for i, symbol in enumerate(selected_symbols):
-        if was_run_recently(symbol):
-            skipped.append(symbol)
-            my_bar.progress((i + 1) / total, text=f"Skipping {symbol} (recently processed)")
-            continue
-        get_underlying_data_vbt([symbol], period='10y', interval='1d')
-        add_features([symbol])
-        mark_run(symbol)
-        my_bar.progress((i + 1) / total, text=f"Processing {symbol} ({i+1}/{total})")
-    st.success("Features added for selected symbols.")
-    if skipped:
-        st.info(f"Skipped (already processed in last hour): {', '.join(skipped)}")
+    st.info("Running feature engineering for selected symbols. Please wait...")
+    with st.spinner("Processing features..."):
+        # Parallel processing for speed
+        with ThreadPoolExecutor() as executor:
+            list(executor.map(process_symbol, selected_symbols))
+    st.success("Feature engineering completed for selected symbols!")
 
 # Plot GARCH vs RSI
 # st.header("GARCH Volatility Percentile vs RSI")
