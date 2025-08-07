@@ -14,6 +14,7 @@ import mplfinance as mpf
 import plotly.graph_objects as go
 import numpy as np
 from concurrent.futures import ThreadPoolExecutor  # <-- Import for parallel processing
+from functools import lru_cache
 
 st.title("Trading Analytics Dashboard")
 
@@ -26,7 +27,10 @@ dates = [str(pd.to_datetime(d).date()) for d in dates]
 selected_date = st.selectbox("Select Date", dates[::-1])
 top_n = st.slider("Number of Top Symbols", 1, 20, 10)
 
-all_symbols = get_symbols(selected_date, top_n=top_n)[0]
+# Convert selected_date string back to datetime for get_symbols
+selected_date_dt = pd.to_datetime(selected_date)
+
+all_symbols = get_symbols(selected_date_dt, top_n=top_n)[0]
 
 # # Add filters: multi-select for symbols
 selected_symbols = st.multiselect(
@@ -34,6 +38,11 @@ selected_symbols = st.multiselect(
 )
 
 # --- Feature Engineering Step (parallelized and cached) ---
+
+@st.cache_data(show_spinner=False)
+def cached_process_symbol(symbol, interval='1d'):
+    process_symbol(symbol, interval)
+
 if st.button("Run Analytics"):
     st.info("Running feature engineering for selected symbols. Please wait...")
     progress_bar = st.progress(0, text="Starting...")
@@ -46,13 +55,15 @@ if st.button("Run Analytics"):
         with ThreadPoolExecutor() as executor:
             futures = []
             for symbol in selected_symbols:
-                futures.append(executor.submit(process_symbol, symbol))
+                futures.append(executor.submit(cached_process_symbol, symbol))
             for i, future in enumerate(futures):
                 future.result()  # Wait for each to finish
                 progress_bar.progress((i + 1) / total, text=f"Processed {i + 1}/{total} symbols")
 
     elapsed = time.time() - start_time  # End timer
-    st.success(f"Feature engineering completed for selected symbols! Time taken: {elapsed:.2f} seconds.")
+    minutes = int(elapsed // 60)
+    seconds = int(elapsed % 60)
+    st.success(f"Feature engineering completed for selected symbols! Time taken: {minutes} min {seconds} sec.")
     progress_bar.empty()
 
 # Plot GARCH vs RSI
