@@ -17,10 +17,12 @@ from concurrent.futures import ThreadPoolExecutor  # <-- Import for parallel pro
 
 st.title("Trading Analytics Dashboard")
 
-st.write("Use the controls above to select date and filter symbols, then click 'Run Analytics'.")
+st.write("Use the controls below to select date and filter symbols, then click 'Run Analytics'.")
 
 # Select date and top N symbols
 dates = get_dates_from_most_active_files()
+# Convert to string (date only, no time)
+dates = [str(pd.to_datetime(d).date()) for d in dates]
 selected_date = st.selectbox("Select Date", dates[::-1])
 top_n = st.slider("Number of Top Symbols", 1, 20, 10)
 
@@ -38,6 +40,8 @@ if st.button("Run Analytics"):
     total = len(selected_symbols)
     results = []
 
+    start_time = time.time()  # Start timer
+
     with st.spinner("Processing features..."):
         with ThreadPoolExecutor() as executor:
             futures = []
@@ -46,7 +50,9 @@ if st.button("Run Analytics"):
             for i, future in enumerate(futures):
                 future.result()  # Wait for each to finish
                 progress_bar.progress((i + 1) / total, text=f"Processed {i + 1}/{total} symbols")
-    st.success("Feature engineering completed for selected symbols!")
+
+    elapsed = time.time() - start_time  # End timer
+    st.success(f"Feature engineering completed for selected symbols! Time taken: {elapsed:.2f} seconds.")
     progress_bar.empty()
 
 # Plot GARCH vs RSI
