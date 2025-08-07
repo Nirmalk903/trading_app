@@ -1,85 +1,66 @@
-import datetime as dt
-from nsepython import *
-from py_vollib.black_scholes.implied_volatility import implied_volatility
-from py_vollib.black_scholes.greeks.analytical import delta
+import requests
+import pandas as pd
+import os
+import time
 
-def get_nifty50_symbols():
-    """
-    Returns list of NIFTY 50 stock symbols.
-    """
-    import pandas as pd
-    nifty50 = pd.read_html("https://www1.nseindia.com/content/indices/ind_nifty50list.csv")[0]
-    return nifty50['Symbol'].tolist()
+# Set up download directory
+download_dir = os.path.abspath("Most_Active_Underlying")
+os.makedirs(download_dir, exist_ok=True)
 
-get_nifty50_symbols()
+url = "https://www.nseindia.com/api/live-analysis-oi-spurts-underlyings"
+headers = {
+    "User-Agent": "Mozilla/5.0",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Referer": "https://www.nseindia.com/"
+}
 
-def get_atm_option_iv(symbol, expiry=None):
-    """
-    Fetches IV of ATM Call Option for the given symbol.
-    """
-    spot = nse_quote_ltp(symbol)
-    print(f"{symbol}: Spot ₹{spot}")
+session = requests.Session()
+session.headers.update(headers)
 
-    # Get nearest weekly/monthly expiry if not supplied
-    if expiry is None:
-        chain = nse_optionchain_scrapper(symbol, "equity")
-        expiries = sorted(set([i['expiryDate'] for i in chain['records']['data']]))
-        expiry = expiries[0]
+# Get the NSE homepage first to set cookies
+try:
+    home = session.get("https://www.nseindia.com", timeout=10)
+    print("Homepage status:", home.status_code)
+except Exception as e:
+    print("Error connecting to NSE homepage:", e)
+    exit()
 
-    # Fetch entire chain for the expiry
-    option_chain = nse_optionchain_scrapper(symbol, "equity")[ 'records']['data']
-    strike_list = sorted({i['strikePrice'] for i in option_chain})
-    atm_strike = min(strike_list, key=lambda x: abs(x - spot))
+time.sleep(3)  # Wait for cookies to be set
 
-    print("  Expiry:", expiry, " | ATM strike:", atm_strike)
+# Now get the data
+try:
+    response = session.get(url, timeout=10)
+    print("API status:", response.status_code)
+except Exception as e:
+    print("Error connecting to API:", e)
+    exit()
 
-    # filter ATM CALL row
-    atm_row = next(
-        i for i in option_chain 
-        if i['strikePrice'] == atm_strike and i.get('CE') and i['expiryDate'] == expiry
-    )
-    option_ltp = atm_row['CE']['lastPrice']
+if response.status_code != 200:
+    print("Failed to fetch data. Status code:", response.status_code)
+    print("Response text:", response.text[:500])
+    exit()
 
-    ttm = (dt.datetime.strptime(expiry, "%d-%b-%Y") - dt.datetime.now()).days / 365.0
-    r = 0.06  # assumed risk-free 6%
+try:
+    data = response.json()
+except Exception as e:
+    print("Error parsing JSON:", e)
+    print("Raw response text:", response.text[:500])
+    exit()
 
-    iv = implied_volatility(
-        price     = option_ltp,
-        S         = spot,
-        K         = atm_strike,
-        t         = ttm,
-        r         = r,
-        flag      = 'c'
-    )
-    return round(iv * 100,2)
+if not isinstance(data, dict):
+    print("Unexpected data format received from API.")
+    print("Raw response text:", response.text[:500])
+    exit()
 
-if __name__ == "__main__":
-    symbols = get_nifty50_symbols()
-    results = {}
-    for sym in symbols:
-        try:
-            iv_atm = get_atm_option_iv(sym)
-            results[sym] = iv_atm
-            print(f"  → Implied Vol: {iv_atm}%")
-        except Exception as e:
-            print(f"{sym}: Error - {e}")
+print("API JSON keys:", data.keys())
+records = data.get('data', [])
+if not records:
+    print("No data found in API response.")
+    print("Full API response:", data)
+    exit()
 
-    print("\nATM IV snapshot:")
-    for s, v in results.items():
-        print(s, v, "%")
+df = pd.DataFrame(records)
+csv_path = os.path.join(download_dir, "oi_spurts_underlyings.csv")
+df.to_csv(csv_path, index=False)
 
-get_atm_option_iv("NSE:RELIANCE", "28-Aug-2025")  # Example usage
-
-
-
-
-import yfinance as yf
-
-ticker = yf.Ticker("RELIANCE.NS")
-news = ticker.news
-for item in news[:10]:
-    print(f"Title: {item.get('title', item.get('headline', 'No Title'))}")
-    print(f"Link: {item.get('link', 'No Link')}")
-    print(f"Published: {item.get('providerPublishTime', 'No Time')}")
-    print("-" * 80)
-
+print("Data successfully downloaded and saved to:", csv_path)
