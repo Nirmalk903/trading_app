@@ -114,12 +114,12 @@ class FeatureEngineering:
         return X
     
     
-    def cfo(self, X, period = 20):
-        self.period = period
-        X['CFO'] = ta.cfo(X['Close'], length=self.period, fillna=True)
-        X['CFO'] = X['CFO'].replace([np.inf, -np.inf], np.nan)
-        X['CFO'] = X['CFO'].fillna(method='bfill')
-        return X
+    # def cfo(self, X, period = 20):
+    #     self.period = period
+    #     X['CFO'] = ta.cfo(X['Close'], length=self.period, fillna=True)
+    #     X['CFO'] = X['CFO'].replace([np.inf, -np.inf], np.nan)
+    #     X['CFO'] = X['CFO'].fillna(method='bfill')
+    #     return X
     
     def rolling_vol(self, X, lag):
         self.lag=lag
@@ -361,12 +361,12 @@ def process_symbol(symbol,interval='1d'):
     
     return
 
-if __name__ == "__main__":
-    # Define your list of symbols here, for example:
-    symbols = ['NIFTY', 'BANKNIFTY', 'RELIANCE', 'TCS']  # <-- Add your symbols
+# if __name__ == "__main__":
+#     # Define your list of symbols here, for example:
+#     symbols = ['NIFTY', 'BANKNIFTY', 'RELIANCE', 'TCS']  # <-- Add your symbols
 
-    with ThreadPoolExecutor() as executor:
-        executor.map(process_symbol, symbols)
+#     with ThreadPoolExecutor() as executor:
+#         executor.map(process_symbol, symbols)
 
 
 

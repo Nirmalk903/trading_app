@@ -1,90 +1,121 @@
+import os
 import pandas as pd
 import numpy as np
 from minisom import MiniSom
-import os
+from sklearn.preprocessing import StandardScaler
+from sklearn.cluster import KMeans
+import matplotlib.pyplot as plt
+from data_download_vbt import getdata_vbt, get_underlying_data_vbt, get_symbols,  get_dates_from_most_active_files
 
-def load_feature_data(symbol, data_dir="Engineered_data"):
-    """Load feature engineered data for a symbol."""
-    file_path = os.path.join(data_dir, f"{symbol}_1d_features.json")
-    if not os.path.exists(file_path):
-        print(f"[{symbol}] Feature file not found.")
-        return None
-    print(f"[{symbol}] Loading feature data...")
-    df = pd.read_json(file_path, orient='records', lines=True)
-    if "Date" not in df.columns:
-        print(f"[{symbol}] 'Date' column not found. Skipping.")
-        return None
-    df = df.sort_values("Date")
-    return df
+def load_features(symbols, data_dir="Engineered_data"):
+    dfs = []
+    for symbol in symbols:
+        file_path = os.path.join(data_dir, f"{symbol}_1d_features.json")
+        if os.path.exists(file_path):
+            df = pd.read_json(file_path, orient='records', lines=True)
+            df['symbol'] = symbol
+            dfs.append(df)
+    return pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
 
-def train_som_on_features(df, som_shape=(5, 5), seed=42, symbol=""):
-    """Train SOM on all numeric features (excluding Date, Close, and non-numeric columns) and return cluster assignments."""
-    # Exclude non-feature columns
-    exclude_cols = ['Date', 'Close', 'Open', 'High', 'Low', 'Volume', 'symbol']
-    feature_cols = [col for col in df.columns if col not in exclude_cols and pd.api.types.is_numeric_dtype(df[col])]
-    print(f"[{symbol}] Training SOM on features: {feature_cols}")
-    X = df[feature_cols].dropna().values
-    som = MiniSom(som_shape[0], som_shape[1], len(feature_cols), sigma=1.0, learning_rate=0.5, random_seed=seed)
-    som.random_weights_init(X)
-    som.train_random(X, 1000)
-    print(f"[{symbol}] SOM training complete.")
-    # Assign each row to a SOM cluster (winning node)
-    win_map = np.array([som.winner(x) for x in X])
-    # Flatten cluster index for easier use
-    cluster_labels = [f"{i}_{j}" for i, j in win_map]
-    df = df.loc[df[feature_cols].dropna().index].copy()
-    df['SOM_Cluster'] = cluster_labels
-    return df, som
+def select_uncorrelated_features(df, feature_cols, n_clusters=5):
+    # Compute correlation matrix
+    corr = df[feature_cols].corr().abs()
+    # Convert correlation to distance
+    dist = 1 - corr
+    # KMeans expects a 2D array, so flatten the distance matrix
+    kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+    kmeans.fit(dist)
+    labels = kmeans.labels_
+    selected_features = []
+    for cluster in range(n_clusters):
+        cluster_features = [feature_cols[i] for i in range(len(feature_cols)) if labels[i] == cluster]
+        if len(cluster_features) == 1:
+            selected_features.append(cluster_features[0])
+        else:
+            # Select the feature with lowest average correlation to others in the cluster
+            avg_corr = corr.loc[cluster_features, cluster_features].mean().sort_values()
+            selected_features.append(avg_corr.index[0])
+    return selected_features
 
-def generate_signals_from_clusters(df, cluster_col='SOM_Cluster', price_col='Close', symbol=""):
-    """Generate simple trading signals based on SOM clusters' average future returns."""
-    print(f"[{symbol}] Generating trading signals from SOM clusters...")
-    df['fwd_return'] = df[price_col].shift(-5) / df[price_col] - 1
-    cluster_stats = df.groupby(cluster_col)['fwd_return'].mean()
-    cluster_signal = cluster_stats.apply(lambda x: 'buy' if x > 0 else 'sell')
-    df['signal'] = df[cluster_col].map(cluster_signal)
-    print(f"[{symbol}] Signal generation complete.")
-    return df
+def run_som_analysis(symbols, plot=True):
+    df = load_features(symbols)
+    feature_cols = [col for col in df.columns if col not in ['Date', 'symbol','Close','High','Low','Volume'] and np.issubdtype(df[col].dtype, np.number)]
+    # Use latest row for each symbol
+    latest = df.sort_values('Date').groupby('symbol').tail(1).reset_index(drop=True)
+    # Select uncorrelated features using KMeans
+    if len(feature_cols) > 1:
+        selected_features = select_uncorrelated_features(latest, feature_cols, n_clusters=min(5, len(feature_cols)))
+    else:
+        selected_features = feature_cols
+    X = latest[selected_features].fillna(0).values
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
 
-def backtest_signals(df, price_col='Close', symbol=""):
-    """Simple backtest: buy on 'buy' signal, sell (exit) on 'sell' signal, no shorting."""
-    print(f"[{symbol}] Running backtest on generated signals...")
-    df = df.copy()
-    df['position'] = (df['signal'] == 'buy').astype(int)
-    df['returns'] = df[price_col].pct_change().fillna(0)
-    df['strategy_returns'] = df['returns'] * df['position'].shift(1).fillna(0)
-    cumulative_return = (1 + df['strategy_returns']).prod() - 1
-    print(f"[{symbol}] Backtest complete. Cumulative return: {cumulative_return:.2%}")
-    return cumulative_return, df
+    som = MiniSom(3, 3, X_scaled.shape[1], sigma=1.0, learning_rate=0.5, random_seed=42)
+    som.random_weights_init(X_scaled)
+    som.train_random(X_scaled, 500)
 
-def get_all_symbols(data_dir="Engineered_data"):
-    """Get all symbols from feature files in the directory."""
-    files = [f for f in os.listdir(data_dir) if f.endswith("_1d_features.json")]
-    symbols = [f.split("_1d_features.json")[0] for f in files]
-    return symbols
+    # Assign clusters
+    latest['SOM_cluster'] = [som.winner(x) for x in X_scaled]
 
+    # Plot SOM chart
+    if plot:
+        plt.figure(figsize=(6, 6))
+        plt.title("SOM Clusters (each node may have multiple stocks)")
+        for i, x in enumerate(X_scaled):
+            w = som.winner(x)
+            plt.text(w[0]+0.1, w[1]+0.1, latest.iloc[i]['symbol'], fontsize=12)
+            plt.plot(w[0]+0.1, w[1]+0.1, 'o', markersize=10)
+        plt.xlim(-0.5, 2.5)
+        plt.ylim(-0.5, 2.5)
+        plt.grid(True)
+        plt.xlabel("SOM X")
+        plt.ylabel("SOM Y")
+        plt.show()
+
+    # Analyze clusters
+    cluster_centers = {}
+    for cluster in set(latest['SOM_cluster']):
+        idx = latest['SOM_cluster'] == cluster
+        cluster_centers[cluster] = latest.loc[idx, selected_features].mean()
+
+    # Identify rich/cheap clusters (example: based on 'Close' and 'Volatility')
+    cluster_richness = {}
+    for cluster, center in cluster_centers.items():
+        if 'Close' in latest.columns and center.get('Close', 0) > np.percentile(latest['Close'], 75):
+            cluster_richness[cluster] = 'Expensive'
+        elif 'Close' in latest.columns and center.get('Close', 0) < np.percentile(latest['Close'], 25):
+            cluster_richness[cluster] = 'Cheap'
+        else:
+            cluster_richness[cluster] = 'Fair'
+
+    # Generate notes
+    notes = []
+    for _, row in latest.iterrows():
+        cluster = row['SOM_cluster']
+        status = cluster_richness[cluster]
+        volatility = row.get('garch_vol', np.nan)
+        comment = f"{row['symbol']} is classified as **{status}**."
+        if status == 'Expensive':
+            comment += " The stock is trading at a higher price compared to peers."
+        elif status == 'Cheap':
+            comment += " The stock is trading at a lower price compared to peers."
+        else:
+            comment += " The stock is fairly priced compared to peers."
+        if not np.isnan(volatility):
+            if volatility > np.percentile(latest['garch_vol'], 75):
+                comment += " Volatility is high, expect larger price swings."
+            elif volatility < np.percentile(latest['garch_vol'], 25):
+                comment += " Volatility is low, price is relatively stable."
+            else:
+                comment += " Volatility is moderate."
+        notes.append(comment)
+    return notes
+
+# Example usage:
 if __name__ == "__main__":
-    data_dir = "Engineered_data"
-    symbols = get_all_symbols(data_dir)
-    results = []
-
-    print(f"Found {len(symbols)} symbols to process.\n")
-
-    for idx, symbol in enumerate(symbols, 1):
-        print(f"\n[{idx}/{len(symbols)}] Processing symbol: {symbol}")
-        df = load_feature_data(symbol, data_dir)
-        if df is None or df.empty:
-            print(f"[{symbol}] Skipping due to missing or insufficient data.")
-            continue
-        df_som, som = train_som_on_features(df, symbol=symbol)
-        df_signals = generate_signals_from_clusters(df_som, symbol=symbol)
-        cum_return, df_bt = backtest_signals(df_signals, symbol=symbol)
-        results.append({'symbol': symbol, 'cumulative_return': cum_return})
-
-    results_df = pd.DataFrame(results).sort_values('cumulative_return', ascending=False)
-    print("\nMost profitable trading strategies by symbol:")
-    print(results_df)
-
-    if not results_df.empty:
-        best_symbol = results_df.iloc[0]['symbol']
-        print(f"\nMost profitable symbol: {best_symbol}")
+    symbols = get_symbols(get_dates_from_most_active_files()[-1],top_n=17)[0]
+    # symbols = ['NIFTY', 'BANKNIFTY', 'RELIANCE', 'TCS', 'INFY','AXISBANK']  # Replace with your symbols
+    notes = run_som_analysis(symbols, plot=True)
+    for note in notes:
+        print(note)

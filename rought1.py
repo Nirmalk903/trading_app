@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from plotting import plot_garch_vs_rsi, plot_garch_vs_avg_iv
 # from market_calendar import  stock_earnings_calendar
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed  # <-- ADD THIS LINE
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
 symbols = get_symbols(get_dates_from_most_active_files()[-1],top_n=17)[0]
