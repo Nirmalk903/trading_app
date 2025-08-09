@@ -66,7 +66,7 @@ if __name__ == "__main__":
     
     create_underlying_analytics(symbols)
     # stock_earnings_calendar(symbols)
-    create_options_analytics(symbols, max_workers=4)
+    # create_options_analytics(symbols, max_workers=4)
     # create_options_analytics(symbols[9:], max_workers=len(symbols[9:]))
 
 
@@ -74,4 +74,4 @@ if __name__ == "__main__":
 
 
 # plot_garch_vs_rsi(symbols)
-# create_underlying_analytics(['BAJFINANCE'])
+# create_underlying_analytics(['RELIANCE'])

@@ -5,7 +5,7 @@ from minisom import MiniSom
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
 import matplotlib.pyplot as plt
-from data_download_vbt import getdata_vbt, get_underlying_data_vbt, get_symbols,  get_dates_from_most_active_files
+from data_download_vbt import getdata_vbt, get_underlying_data_vbt, get_symbols, get_dates_from_most_active_files
 
 def load_features(symbols, data_dir="Engineered_data"):
     dfs = []
@@ -79,43 +79,63 @@ def run_som_analysis(symbols, plot=True):
         idx = latest['SOM_cluster'] == cluster
         cluster_centers[cluster] = latest.loc[idx, selected_features].mean()
 
-    # Identify rich/cheap clusters (example: based on 'Close' and 'Volatility')
-    cluster_richness = {}
+    # Calculate percentiles for adaptive thresholds
+    rsi_high = np.percentile(latest['RSI'].dropna(), 70)
+    rsi_low = np.percentile(latest['RSI'].dropna(), 30)
+    vol_high = np.percentile(latest['vol_percentile'].dropna(), 70)
+    vol_low = np.percentile(latest['vol_percentile'].dropna(), 30)
+    ma_high = np.percentile(latest['dist_from_MA20'].dropna(), 70)
+    ma_low = np.percentile(latest['dist_from_MA20'].dropna(), 30)
+
+    # Identify rich/cheap/neutral clusters based on technicals (adaptive)
+    cluster_labels = {}
     for cluster, center in cluster_centers.items():
-        if 'Close' in latest.columns and center.get('Close', 0) > np.percentile(latest['Close'], 75):
-            cluster_richness[cluster] = 'Expensive'
-        elif 'Close' in latest.columns and center.get('Close', 0) < np.percentile(latest['Close'], 25):
-            cluster_richness[cluster] = 'Cheap'
+        if (
+            center.get('RSI', 50) > rsi_high or
+            center.get('vol_percentile', 50) > vol_high or
+            center.get('dist_from_MA20', 0) > ma_high
+        ):
+            cluster_labels[cluster] = 'Rich/Overbought'
+        elif (
+            center.get('RSI', 50) < rsi_low or
+            center.get('vol_percentile', 50) < vol_low or
+            center.get('dist_from_MA20', 0) < ma_low
+        ):
+            cluster_labels[cluster] = 'Cheap/Oversold'
         else:
-            cluster_richness[cluster] = 'Fair'
+            cluster_labels[cluster] = 'Neutral/Trendless'
 
     # Generate notes
     notes = []
     for _, row in latest.iterrows():
         cluster = row['SOM_cluster']
-        status = cluster_richness[cluster]
-        volatility = row.get('garch_vol', np.nan)
+        status = cluster_labels[cluster]
         comment = f"{row['symbol']} is classified as **{status}**."
-        if status == 'Expensive':
-            comment += " The stock is trading at a higher price compared to peers."
-        elif status == 'Cheap':
-            comment += " The stock is trading at a lower price compared to peers."
+        if status == 'Rich/Overbought':
+            comment += (
+                " Short-term technicals show: high RSI (momentum/overbought), high volatility percentile (active market), "
+                "and price extended above the 20-day moving average. This may indicate a potential reversal, breakout, or increased risk for option sellers."
+            )
+        elif status == 'Cheap/Oversold':
+            comment += (
+                " Short-term technicals show: low RSI (weak momentum/oversold), low volatility percentile (quiet market), "
+                "and price extended below the 20-day moving average. This may indicate a potential bounce, breakdown, or opportunity for option buyers."
+            )
         else:
-            comment += " The stock is fairly priced compared to peers."
-        if not np.isnan(volatility):
-            if volatility > np.percentile(latest['garch_vol'], 75):
-                comment += " Volatility is high, expect larger price swings."
-            elif volatility < np.percentile(latest['garch_vol'], 25):
-                comment += " Volatility is low, price is relatively stable."
-            else:
-                comment += " Volatility is moderate."
+            comment += (
+                " Technicals are neutral: RSI and volatility are moderate, and price is near the 20-day moving average. "
+                "No strong short-term trend or edge detected."
+            )
         notes.append(comment)
-    return notes
+    return notes, cluster_labels
 
-# Example usage:
-if __name__ == "__main__":
-    symbols = get_symbols(get_dates_from_most_active_files()[-1],top_n=17)[0]
-    # symbols = ['NIFTY', 'BANKNIFTY', 'RELIANCE', 'TCS', 'INFY','AXISBANK']  # Replace with your symbols
-    notes = run_som_analysis(symbols, plot=True)
-    for note in notes:
-        print(note)
+symbols = get_symbols(get_dates_from_most_active_files()[-1], top_n=17)[0]
+notes, cluster_labels = run_som_analysis(symbols, plot=True)
+
+print("\nCluster Labels:")
+for cluster, label in cluster_labels.items():
+    print(f"Cluster {cluster}: {label}")
+
+print("\nNotes:")
+for note in notes:
+    print(f" - {note}")

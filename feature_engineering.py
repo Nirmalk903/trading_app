@@ -5,10 +5,6 @@ import os
 import vectorbt as vbt
 from volatility_modeling import garch_vol
 from scipy.stats import percentileofscore
-# import talib as ta
-from concurrent.futures import ThreadPoolExecutor
-
-
 
 class FeatureEngineering:
     
@@ -134,11 +130,72 @@ class FeatureEngineering:
         
         return X
     
-    def rsi(self,X):
-        rsi = vbt.RSI.run(X['Close'], window=14, short_name='RSI')
+    def rsi(self, X, window=14, percentile_window=14):
+        import vectorbt as vbt
+        # Ensure 'Date' column exists
+        if 'Date' not in X.columns:
+            if X.index.name == 'Date':
+                X = X.reset_index()
+            else:
+                raise KeyError("'Date' column is required in the DataFrame for resampling.")
+        # Daily RSI
+        rsi = vbt.RSI.run(X['Close'], window=window, short_name='RSI')
         X['RSI'] = rsi.rsi
-        # X['RSI_percentile'] = [np.round(percentileofscore(X['RSI'], i),0) for i in X['RSI'] ]
-        # X['RSI_percentile'] = X['RSI_percentile'].bfill()
+
+        # Daily RSI percentile (long window, as before)
+        rsi_percentiles = []
+        for i in range(len(X)):
+            if i < percentile_window:
+                rsi_percentiles.append(np.nan)
+            else:
+                window_rsi = X['RSI'].iloc[i - percentile_window:i]
+                val = X['RSI'].iloc[i]
+                pct = percentileofscore(window_rsi, val)
+                rsi_percentiles.append(pct)
+        X['RSI_percentile'] = rsi_percentiles
+
+        # --- Weekly RSI and percentile ---
+        # Resample to weekly and calculate RSI
+        X_weekly = X.set_index('Date').resample('W').last()
+        rsi_weekly = vbt.RSI.run(X_weekly['Close'], window=window, short_name='RSI')
+        X_weekly['RSI_weekly'] = rsi_weekly.rsi
+
+        # Calculate weekly RSI percentile (rolling, on weekly data)
+        rsi_percentiles_weekly = []
+        for i in range(len(X_weekly)):
+            if i < 52:  # 1 year of weekly data
+                rsi_percentiles_weekly.append(np.nan)
+            else:
+                window_rsi = X_weekly['RSI_weekly'].iloc[i - 52:i]
+                val = X_weekly['RSI_weekly'].iloc[i]
+                pct = percentileofscore(window_rsi, val)
+                rsi_percentiles_weekly.append(pct)
+        X_weekly['RSI_percentile_weekly'] = rsi_percentiles_weekly
+
+        # Map weekly RSI and percentile back to daily data
+        X['RSI_weekly'] = X_weekly['RSI_weekly'].reindex(X.set_index('Date').index, method='ffill').values
+        X['RSI_percentile_weekly'] = X_weekly['RSI_percentile_weekly'].reindex(X.set_index('Date').index, method='ffill').values
+
+        # --- Monthly RSI and percentile ---
+        X_monthly = X.set_index('Date').resample('ME').last()
+        rsi_monthly = vbt.RSI.run(X_monthly['Close'], window=window, short_name='RSI')
+        X_monthly['RSI_monthly'] = rsi_monthly.rsi
+
+        rsi_percentiles_monthly = []
+        for i in range(len(X_monthly)):
+            if i < 12:  # 1 year of monthly data
+                rsi_percentiles_monthly.append(np.nan)
+            else:
+                window_rsi = X_monthly['RSI_monthly'].iloc[i - 12:i]
+                val = X_monthly['RSI_monthly'].iloc[i]
+                pct = percentileofscore(window_rsi, val)
+                rsi_percentiles_monthly.append(pct)
+        X_monthly['RSI_percentile_monthly'] = rsi_percentiles_monthly
+
+        # Map monthly RSI and percentile back to daily data
+        X['RSI_monthly'] = X_monthly['RSI_monthly'].reindex(X.set_index('Date').index, method='ffill').values
+        X['RSI_percentile_monthly'] = X_monthly['RSI_percentile_monthly'].reindex(X.set_index('Date').index, method='ffill').values
+
         return X
     
     def bollinger_bands(self,X, period=20, std=2):
@@ -193,23 +250,22 @@ class FeatureEngineering:
 
 
     
-    def callme(self,X):
-        self.returns(X)
-        self.dCPR(X)
-        self.wCPR(X)
-        # self.cpr_vol(X,lag=20)
-        self.price_momentum(X,lag=20)
-        self.sma(X,lag=20)
-        self.price_range(X)
-        self.dpo_centered(X)
-        # self.dpo_non_centered(X,lag=20)
-        # self.cfo(X,lag=20)
-        self.rolling_vol(X,lag=25)
-        self.rsi(X)
-        self.bollinger_bands(X, period=20, std=2)
-        self.keltner_channel(X, period=20, atr_multiplier=1.5)
+    def callme(self, X):
+        X = self.returns(X)
+        X = self.dCPR(X)
+        X = self.wCPR(X)
+        # X = self.cpr_vol(X,lag=20)
+        X = self.price_momentum(X,lag=20)
+        X = self.sma(X,lag=20)
+        X = self.price_range(X)
+        X = self.dpo_centered(X)
+        # X = self.dpo_non_centered(X,lag=20)
+        # X = self.cfo(X,lag=20)
+        X = self.rolling_vol(X,lag=25)
+        X = self.rsi(X)
+        X = self.bollinger_bands(X, period=20, std=2)
+        X = self.keltner_channel(X, period=20, atr_multiplier=1.5)
 
-        
         print('Feature Engineering Completed')
         return X
 
@@ -368,5 +424,4 @@ def process_symbol(symbol,interval='1d'):
 #     with ThreadPoolExecutor() as executor:
 #         executor.map(process_symbol, symbols)
 
-
-
+process_symbol('NIFTY', '1d')
