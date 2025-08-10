@@ -112,6 +112,32 @@ if st.button("Show Historical Chart"):
         
         df_hist_recent = df_hist.tail(num_days) if num_days is not None else df_hist
 
+        # --- Add summary table for latest row ---
+        latest = df_hist_recent.iloc[-1]
+        summary_dict = {
+            "Latest Price": latest["Close"],
+            "Daily Return": latest.get("Returns", None),
+            "GARCH Volatility": latest.get("garch_vol", None),
+            "GARCH Volatility Percentile": latest.get("garch_vol_percentile", None),
+            "Daily CPR": latest.get("dCPR", None),
+            "RSI": latest.get("RSI", None),
+            "RSI Percentile": latest.get("RSI_percentile", None),
+            "Weekly RSI": latest.get("RSI_weekly", None),
+            "Weekly RSI Percentile": latest.get("RSI_percentile_weekly", None)
+        }
+        # Format numeric values: 'Daily Return' as percentage with one decimal, others as 0 decimals
+        for k, v in summary_dict.items():
+            if k == "Daily Return" and isinstance(v, (int, float)) and v is not None:
+                summary_dict[k] = f"{v*100:.1f}%"
+            elif isinstance(v, (int, float)) and v is not None:
+                summary_dict[k] = f"{v:.0f}"
+        summary_df = pd.DataFrame([summary_dict])
+
+        # --- Display as tabular format with heading ---
+        st.subheader(f"Stock Analysis - {latest['Date'].date()}")
+        st.table(summary_df)
+
+        # --- Existing plotting code ---
         # Check for minimum data length
         min_rows = 100
         if len(df_hist_recent) < min_rows:
@@ -199,6 +225,54 @@ if st.button("Show Historical Chart"):
             st.pyplot(fig, use_container_width=True)
     else:
         st.warning(f"Feature file not found for {hist_symbol}: {feature_file}")
+
+# --- Add summary table for all symbols (latest row for each) ---
+summary_rows = []
+for symbol in all_symbols:
+    feature_file = os.path.join("Engineered_data", f"{symbol}_1d_features.json")
+    if os.path.exists(feature_file):
+        df = pd.read_json(feature_file, orient='records', lines=True)
+        df = df.sort_values("Date")
+        df["Date"] = pd.to_datetime(df["Date"])
+        latest = df.iloc[-1]
+        summary_rows.append({
+            "Symbol": symbol,
+            "Date": latest["Date"].date(),
+            "Latest Price": latest["Close"],
+            "Daily Return": latest.get("Returns", None),
+            "GARCH Volatility": latest.get("garch_vol", None),
+            "GARCH Volatility Percentile": latest.get("garch_vol_percentile", None),
+            "Daily CPR": latest.get("dCPR", None),
+            "RSI": latest.get("RSI", None),
+            "RSI Percentile": latest.get("RSI_percentile", None),
+            "Weekly RSI": latest.get("RSI_weekly", None),
+            "Weekly RSI Percentile": latest.get("RSI_percentile_weekly", None)
+        })
+
+if summary_rows:
+    summary_all_df = pd.DataFrame(summary_rows)
+    # Remove the 'Date' column and get the latest date for the header
+    latest_date = summary_all_df["Date"].iloc[0] if "Date" in summary_all_df.columns else ""
+    summary_all_df = summary_all_df.drop(columns=["Date"])
+    # Convert 'Daily Return' to float for sorting
+    summary_all_df['Daily Return'] = summary_all_df['Daily Return'].replace('', pd.NA).astype(float)
+    # Sort by Daily Return in descending order
+    summary_all_df = summary_all_df.sort_values(by='Daily Return', ascending=False)
+    # Format all numeric columns to 0 decimal places, except 'Daily Return'
+    for col in summary_all_df.columns:
+        if col == "Daily Return":
+            # Convert to percentage with one decimal place
+            summary_all_df[col] = summary_all_df[col].apply(
+                lambda x: f"{x*100:.1f}%" if pd.notnull(x) else ""
+            )
+        elif pd.api.types.is_numeric_dtype(summary_all_df[col]):
+            summary_all_df[col] = summary_all_df[col].apply(lambda x: f"{x:.0f}" if pd.notnull(x) else "")
+    # Reset index to start from 1
+    summary_all_df.index = summary_all_df.index + 1
+    st.subheader(f"Stock Analysis - {latest_date}")
+    st.dataframe(summary_all_df, use_container_width=True)
+else:
+    st.warning("No feature files found for the selected symbols.")
 
 # Upcoming Earnings, Dividends & Corporate Actions
 
