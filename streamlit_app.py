@@ -308,6 +308,14 @@ if summary_rows:
 else:
     st.warning("No feature files found for the selected symbols.")
 
+# Refresh Live Data
+if st.button("Refresh Live Data"):
+    with st.spinner("Fetching latest data for all symbols..."):
+        for symbol in all_symbols:
+            process_symbol(symbol, interval='1d')
+        st.cache_data.clear()
+    st.success("Live data refreshed! Please rerun the table section.")
+
 # Upcoming Earnings, Dividends & Corporate Actions
 
 
