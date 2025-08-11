@@ -254,23 +254,51 @@ if summary_rows:
     # Remove the 'Date' column and get the latest date for the header
     latest_date = summary_all_df["Date"].iloc[0] if "Date" in summary_all_df.columns else ""
     summary_all_df = summary_all_df.drop(columns=["Date"])
-    # Convert 'Daily Return' to float for sorting
-    summary_all_df['Daily Return'] = summary_all_df['Daily Return'].replace('', pd.NA).astype(float)
-    # Sort by Daily Return in descending order
-    summary_all_df = summary_all_df.sort_values(by='Daily Return', ascending=False)
-    # Format all numeric columns to 0 decimal places, except 'Daily Return'
+
+    # Keep a copy of the original numeric columns for sorting
+    numeric_cols = ["Latest Price", "Daily Return", "GARCH Volatility", "GARCH Volatility Percentile",
+                    "Daily CPR", "RSI", "RSI Percentile", "Weekly RSI", "Weekly RSI Percentile"]
+
+    # Convert numeric columns to float for sorting
+    for col in numeric_cols:
+        if col in summary_all_df.columns:
+            summary_all_df[col] = pd.to_numeric(summary_all_df[col], errors='coerce')
+
+    # Let user select column to sort by
+    sort_col = st.selectbox(
+        "Sort table by column",
+        options=["Symbol"] + [col for col in numeric_cols if col in summary_all_df.columns],
+        index=2  # Default to "Daily Return"
+    )
+    ascending = st.radio("Sort order", ["Descending", "Ascending"], index=0) == "Ascending"
+    summary_all_df = summary_all_df.sort_values(by=sort_col, ascending=ascending)
+
+    # Format columns for display
     for col in summary_all_df.columns:
         if col == "Daily Return":
-            # Convert to percentage with one decimal place
             summary_all_df[col] = summary_all_df[col].apply(
                 lambda x: f"{x*100:.1f}%" if pd.notnull(x) else ""
             )
-        elif pd.api.types.is_numeric_dtype(summary_all_df[col]):
+        elif col in numeric_cols and col != "Daily Return":
             summary_all_df[col] = summary_all_df[col].apply(lambda x: f"{x:.0f}" if pd.notnull(x) else "")
+
     # Reset index to start from 1
     summary_all_df.index = summary_all_df.index + 1
+
+    # --- Highlight Daily Return: green for positive, red for negative, center align ---
+    def highlight_daily_return(val):
+        try:
+            num = float(val.replace('%', ''))
+            color = 'green' if num > 0 else 'red' if num < 0 else 'black'
+            return f'color: {color}; text-align: center;'
+        except:
+            return 'text-align: center;'
+
+    styled_df = summary_all_df.style.applymap(highlight_daily_return, subset=['Daily Return']) \
+                                    .set_properties(**{'text-align': 'center'})
+
     st.subheader(f"Stock Analysis - {latest_date}")
-    st.dataframe(summary_all_df, use_container_width=True)
+    st.dataframe(styled_df, use_container_width=True)
 else:
     st.warning("No feature files found for the selected symbols.")
 
