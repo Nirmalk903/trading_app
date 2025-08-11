@@ -232,6 +232,12 @@ for symbol in all_symbols:
     feature_file = os.path.join("Engineered_data", f"{symbol}_1d_features.json")
     if os.path.exists(feature_file):
         df = pd.read_json(feature_file, orient='records', lines=True)
+        # If 'Date' is not a column but is the index, convert it to a column
+        if "Date" not in df.columns:
+            if df.index.name == "Date":
+                df = df.reset_index()
+        if "Date" not in df.columns or df.empty:
+            continue  # Skip if Date column is missing or DataFrame is empty
         df = df.sort_values("Date")
         df["Date"] = pd.to_datetime(df["Date"])
         latest = df.iloc[-1]
