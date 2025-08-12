@@ -211,7 +211,7 @@ else:
 target_periods = [3, 5, 7]
 target_returns = [0.01, 0.015, 0.02]
 bt_scenario = scenario_analysis(df, target_periods, target_returns, symbols, years=5, threshold=0.7)
-bt_scenario.to_csv("scenario_analysis",index=False)
+bt_scenario.to_csv("scenario_analysis.csv",index=False)
 
 end_time = time.time()
 print(f"\nScript completed in {int(end_time - start_time)} seconds.")

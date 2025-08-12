@@ -126,7 +126,7 @@ class FeatureEngineering:
         return X
     
     def returns(self,X):
-        X['Returns'] = X['Close'].pct_change()
+        X['Returns'] = X['Close'].pct_change(fill_method=None)
         
         return X
     
@@ -357,7 +357,7 @@ def update_features(symbols, interval='1d'):
         # Add GARCH volatility
         new_data['garch_vol'] = garch_vol(symbol).values[-len(new_data):]
         new_data['garch_vol'] = new_data['garch_vol'].bfill()
-        new_data['garch_vol_pct_chng'] = new_data['garch_vol'].pct_change()
+        new_data['garch_vol_pct_chng'] = new_data['garch_vol'].pct_change(fill_method=None)
         new_data['garch_vol_percentile'] = [
             np.round(percentileofscore(raw_data['garch_vol'], i), 0) for i in raw_data['garch_vol']
         ]
