@@ -208,7 +208,7 @@ else:
     print("No data loaded.")
 
 # Example usage for scenario analysis after loading df and symbols:
-target_periods = [3, 5, 7]
+target_periods = [2, 3, 5, 7]
 target_returns = [0.01, 0.015, 0.02]
 bt_scenario = scenario_analysis(df, target_periods, target_returns, symbols, years=5, threshold=0.7)
 bt_scenario.to_csv("scenario_analysis.csv",index=False)
