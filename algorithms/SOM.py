@@ -200,5 +200,24 @@ plt.savefig(heatmap_img_path, bbox_inches='tight')
 plt.close()
 print(f"Heatmap saved to {heatmap_img_path}.")
 
+# After you assign SOM clusters to your DataFrame (df['SOM_cluster'] = ...), add this:
+
+# Get the latest row for each stock
+latest_df = df.sort_values('Date').groupby('symbol').tail(1)
+
+# Group by SOM cluster and aggregate the stock symbols
+cluster_stock_map = latest_df.groupby('SOM_cluster')['symbol'].unique().reset_index()
+cluster_stock_map['symbol'] = cluster_stock_map['symbol'].apply(lambda x: ', '.join(sorted(set(x))))
+
+print("\nStocks for each SOM cluster (cell) based on latest data point:")
+print(cluster_stock_map.to_string(index=False))
+
+# Optionally, save to CSV in SOM_Image folder
+import os
+save_path = os.path.join(os.path.dirname(__file__), "SOM_Image", "latest_cluster_stock_table.csv")
+os.makedirs(os.path.dirname(save_path), exist_ok=True)
+cluster_stock_map.to_csv(save_path, index=False)
+print(f"Cluster-stock association table (latest data) saved to {save_path}.")
+
 end_time = time.time()
 print(f"\nSOM analysis pipeline completed in {int(end_time - start_time)} seconds.")

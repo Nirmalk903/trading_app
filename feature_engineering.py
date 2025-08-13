@@ -5,6 +5,7 @@ import os
 import vectorbt as vbt
 from volatility_modeling import garch_vol
 from scipy.stats import percentileofscore
+from data_download_vbt import getdata_vbt, get_underlying_data_vbt, get_symbols,  get_dates_from_most_active_files
 
 class FeatureEngineering:
     
@@ -417,11 +418,9 @@ def process_symbol(symbol,interval='1d'):
     
     return
 
-# if __name__ == "__main__":
-#     # Define your list of symbols here, for example:
-#     symbols = ['NIFTY', 'BANKNIFTY', 'RELIANCE', 'TCS']  # <-- Add your symbols
 
-#     with ThreadPoolExecutor() as executor:
-#         executor.map(process_symbol, symbols)
-
-process_symbol('NIFTY', '1d')
+def create_underlying_analytics(symbols):
+    get_underlying_data_vbt(symbols, period='10y', interval='1d')
+    add_features(symbols)
+    # plot_garch_vs_rsi(symbols)
+    return "Analytics created successfully for all symbols."

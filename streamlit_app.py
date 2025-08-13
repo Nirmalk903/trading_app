@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 # from market_calendar import stock_earnings_calendar
 from PIL import Image
-from feature_engineering import process_symbol  # <-- Import the new function
+from feature_engineering import process_symbol, create_underlying_analytics
 from plotting import plot_garch_vs_rsi, plot_garch_vs_avg_iv
 from data_download_vbt import getdata_vbt, get_underlying_data_vbt, get_symbols,  get_dates_from_most_active_files
 import os
@@ -13,7 +13,7 @@ import matplotlib.dates as mdates
 import mplfinance as mpf
 import plotly.graph_objects as go
 import numpy as np
-from concurrent.futures import ThreadPoolExecutor  # <-- Import for parallel processing
+from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache
 
 st.title("Trading Analytics Dashboard")
@@ -25,7 +25,7 @@ dates = get_dates_from_most_active_files()
 # Convert to string (date only, no time)
 dates = [str(pd.to_datetime(d).date()) for d in dates]
 selected_date = st.selectbox("Select Date", dates[::-1])
-top_n = st.slider("Number of Top Symbols", 1, 20, 10)
+top_n = st.slider("Number of Top Symbols", 1, 30, 10)
 
 # Convert selected_date string back to datetime for get_symbols
 selected_date_dt = pd.to_datetime(selected_date)
@@ -33,32 +33,32 @@ selected_date_dt = pd.to_datetime(selected_date)
 all_symbols = get_symbols(selected_date_dt, top_n=top_n)[0]
 
 # # Add filters: multi-select for symbols
+st.markdown(
+    """
+    <style>
+    .symbol-font .stMultiSelect label, .symbol-font .stMultiSelect span {
+        font-size: 0.3em !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 selected_symbols = st.multiselect(
-    "Filter and Select Symbols", options=all_symbols, default=all_symbols
+    "Filter and Select Symbols", options=all_symbols, default=all_symbols, key="symbol_multiselect", help=None
 )
 
 # --- Feature Engineering Step (parallelized and cached) ---
 
-@st.cache_data(show_spinner=False)
-def cached_process_symbol(symbol, interval='1d'):
-    process_symbol(symbol, interval)
-
 if st.button("Run Analytics"):
     st.info("Running feature engineering for selected symbols. Please wait...")
     progress_bar = st.progress(0, text="Starting...")
-    total = len(selected_symbols)
-    results = []
 
     start_time = time.time()  # Start timer
 
     with st.spinner("Processing features..."):
-        with ThreadPoolExecutor() as executor:
-            futures = []
-            for symbol in selected_symbols:
-                futures.append(executor.submit(cached_process_symbol, symbol))
-            for i, future in enumerate(futures):
-                future.result()  # Wait for each to finish
-                progress_bar.progress((i + 1) / total, text=f"Processed {i + 1}/{total} symbols")
+        # Remove parallel execution, use create_underlying_analytics for all selected symbols
+        create_underlying_analytics(selected_symbols)
+        progress_bar.progress(1.0, text=f"Processed {len(selected_symbols)}/{len(selected_symbols)} symbols")
 
     elapsed = time.time() - start_time  # End timer
     minutes = int(elapsed // 60)
@@ -84,14 +84,14 @@ st.header("Plot Historical Chart")
 
 # Dropdown to select a single stock for historical chart
 hist_symbol = st.selectbox(
-    "Select stock for historical chart", options=all_symbols, key="hist_symbol"
+    "Select stock for historical chart", options=selected_symbols, key="hist_symbol"
 )
 
 # Select number of days to show (period)
 period_options = {
-    "6 Months": 180,
-    "1 Year": 365,
-    "2 Years": 730,
+    "6 Months": 126,
+    "1 Year": 252,
+    "2 Years": 504,
     "All": None
 }
 selected_period_label = st.selectbox(
@@ -300,7 +300,7 @@ if summary_rows:
         except:
             return 'text-align: center;'
 
-    styled_df = summary_all_df.style.applymap(highlight_daily_return, subset=['Daily Return']) \
+    styled_df = summary_all_df.style.map(highlight_daily_return, subset=['Daily Return']) \
                                     .set_properties(**{'text-align': 'center'})
 
     st.subheader(f"Stock Analysis - {latest_date}")
@@ -308,13 +308,6 @@ if summary_rows:
 else:
     st.warning("No feature files found for the selected symbols.")
 
-# Refresh Live Data
-if st.button("Refresh Live Data"):
-    with st.spinner("Fetching latest data for all symbols..."):
-        for symbol in all_symbols:
-            process_symbol(symbol, interval='1d')
-        st.cache_data.clear()
-    st.success("Live data refreshed! Please rerun the table section.")
 
 # Upcoming Earnings, Dividends & Corporate Actions
 
