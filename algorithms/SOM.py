@@ -203,9 +203,9 @@ print(f"Heatmap saved to {heatmap_img_path}.")
 # After you assign SOM clusters to your DataFrame (df['SOM_cluster'] = ...), add this:
 
 # Get the latest row for each stock
-latest_df = df.sort_values('Date').groupby('symbol').tail(1)
 
-# Group by SOM cluster and aggregate the stock symbols
+
+latest_df = som_df.sort_values('Date').groupby('symbol').tail(1)
 cluster_stock_map = latest_df.groupby('SOM_cluster')['symbol'].unique().reset_index()
 cluster_stock_map['symbol'] = cluster_stock_map['symbol'].apply(lambda x: ', '.join(sorted(set(x))))
 

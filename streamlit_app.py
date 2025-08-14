@@ -66,6 +66,23 @@ if st.button("Run Analytics"):
     st.success(f"Feature engineering completed for selected symbols! Time taken: {minutes} min {seconds} sec.")
     progress_bar.empty()
 
+# --- Load all engineered data for selected symbols only once ---
+engineered_data = {}
+for symbol in selected_symbols:
+    feature_file = os.path.join("Engineered_data", f"{symbol}_1d_features.json")
+    if os.path.exists(feature_file):
+        df = pd.read_json(feature_file, orient='records', lines=True)
+        if "Date" not in df.columns:
+            if df.index.name == "Date":
+                df = df.reset_index()
+        if "Date" not in df.columns or df.empty:
+            continue
+        df = df.sort_values("Date")
+        df["Date"] = pd.to_datetime(df["Date"])
+        engineered_data[symbol] = df
+
+# --- Use engineered_data for all calculations below ---
+
 # Plot GARCH vs RSI
 # st.header("GARCH Volatility Percentile vs RSI")
 dt = dt_time.now().strftime('%Y-%m-%d')
@@ -78,11 +95,8 @@ if os.path.exists(image_path):
 else:
     st.warning(f"Image not found: {image_path}")
 
-# Section: Plot Historical Chart from Engineered_data
-
+# Plot Historical Chart
 st.header("Plot Historical Chart")
-
-# Dropdown to select a single stock for historical chart
 hist_symbol = st.selectbox(
     "Select stock for historical chart", options=selected_symbols, key="hist_symbol"
 )
@@ -100,11 +114,8 @@ selected_period_label = st.selectbox(
 num_days = period_options[selected_period_label]
 
 if st.button("Show Historical Chart"):
-    feature_file = os.path.join("Engineered_data", f"{hist_symbol}_1d_features.json")
-    if os.path.exists(feature_file):
-        df_hist = pd.read_json(feature_file, orient='records', lines=True)
-        df_hist = df_hist.sort_values("Date")
-        df_hist["Date"] = pd.to_datetime(df_hist["Date"])
+    if hist_symbol in engineered_data:
+        df_hist = engineered_data[hist_symbol].copy()
         # Calculate moving averages
         df_hist["MA_10"] = df_hist["Close"].rolling(window=10).mean()
         df_hist["MA_50"] = df_hist["Close"].rolling(window=50).mean()
@@ -224,36 +235,27 @@ if st.button("Show Historical Chart"):
 
             st.pyplot(fig, use_container_width=True)
     else:
-        st.warning(f"Feature file not found for {hist_symbol}: {feature_file}")
+        st.warning(f"Feature file not found for {hist_symbol}")
 
-# --- Add summary table for all symbols (latest row for each) ---
+# --- Summary table for all symbols (latest row for each) ---
 summary_rows = []
-for symbol in all_symbols:
-    feature_file = os.path.join("Engineered_data", f"{symbol}_1d_features.json")
-    if os.path.exists(feature_file):
-        df = pd.read_json(feature_file, orient='records', lines=True)
-        # If 'Date' is not a column but is the index, convert it to a column
-        if "Date" not in df.columns:
-            if df.index.name == "Date":
-                df = df.reset_index()
-        if "Date" not in df.columns or df.empty:
-            continue  # Skip if Date column is missing or DataFrame is empty
-        df = df.sort_values("Date")
-        df["Date"] = pd.to_datetime(df["Date"])
-        latest = df.iloc[-1]
-        summary_rows.append({
-            "Symbol": symbol,
-            "Date": latest["Date"].date(),
-            "Latest Price": latest["Close"],
-            "Daily Return": latest.get("Returns", None),
-            "GARCH Volatility": latest.get("garch_vol", None),
-            "GARCH Volatility Percentile": latest.get("garch_vol_percentile", None),
-            "Daily CPR": latest.get("dCPR", None),
-            "RSI": latest.get("RSI", None),
-            "RSI Percentile": latest.get("RSI_percentile", None),
-            "Weekly RSI": latest.get("RSI_weekly", None),
-            "Weekly RSI Percentile": latest.get("RSI_percentile_weekly", None)
-        })
+for symbol, df in engineered_data.items():
+    if df.empty or "Date" not in df.columns:
+        continue
+    latest = df.iloc[-1]
+    summary_rows.append({
+        "Symbol": symbol,
+        "Date": latest["Date"].date(),
+        "Latest Price": latest["Close"],
+        "Daily Return": latest.get("Returns", None),
+        "GARCH Volatility": latest.get("garch_vol", None),
+        "GARCH Volatility Percentile": latest.get("garch_vol_percentile", None),
+        "Daily CPR": latest.get("dCPR", None),
+        "RSI": latest.get("RSI", None),
+        "RSI Percentile": latest.get("RSI_percentile", None),
+        "Weekly RSI": latest.get("RSI_weekly", None),
+        "Weekly RSI Percentile": latest.get("RSI_percentile_weekly", None)
+    })
 
 if summary_rows:
     summary_all_df = pd.DataFrame(summary_rows)
@@ -310,5 +312,25 @@ else:
 
 
 # Upcoming Earnings, Dividends & Corporate Actions
+
+# --- Correlation Matrix for Selected Stocks ---
+st.header("Correlation Matrix for Selected Stocks")
+
+close_prices = {}
+for symbol, df in engineered_data.items():
+    if not df.empty and "Date" in df.columns:
+        close_prices[symbol] = df.set_index("Date")["Close"]
+
+if close_prices:
+    close_df = pd.DataFrame(close_prices)
+    returns_df = close_df.pct_change(fill_method=None)
+    corr_matrix = returns_df.corr()
+    st.subheader("Correlation Matrix (Daily Returns)")
+    st.dataframe(
+        corr_matrix.style.format("{:.2f}").background_gradient(cmap='coolwarm'),
+        use_container_width=True
+    )
+else:
+    st.warning("Not enough data to compute correlation matrix for selected stocks.")
 
 
