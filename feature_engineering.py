@@ -316,6 +316,7 @@ def add_features(symbols, interval='1d'):
 
         # --- Add 21-day rolling correlation with NIFTY and BANKNIFTY ---
         data = data.set_index('Date')
+        data = data.asfreq('B')
         if 'Close' in data.columns:
             for idx_symbol in index_symbols:
                 if idx_symbol in index_closes:
