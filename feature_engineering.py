@@ -6,6 +6,10 @@ import vectorbt as vbt
 from volatility_modeling import garch_vol
 from scipy.stats import percentileofscore
 from data_download_vbt import getdata_vbt, get_underlying_data_vbt, get_symbols,  get_dates_from_most_active_files
+from algorithms.hamilton_markov_model import apply_hamilton_regime_switching
+from algorithms.hidden_markov_model import apply_hidden_markov_model
+from statsmodels.tsa.regime_switching.markov_regression import MarkovRegression
+from hmmlearn.hmm import GaussianHMM
 
 class FeatureEngineering:
     
@@ -273,11 +277,22 @@ class FeatureEngineering:
 
 
 def add_features(symbols, interval='1d'):
+    # --- Load NIFTY and BANKNIFTY close prices for correlation ---
+    index_symbols = ['NIFTY', 'BANKNIFTY']
+    index_closes = {}
+    for idx_symbol in index_symbols:
+        idx_path = f'./Underlying_data_vbt/{idx_symbol}_{interval}.csv'
+        idx_path = os.path.join(idx_path)
+        if os.path.exists(idx_path):
+            idx_df = pd.read_csv(idx_path, parse_dates=True)
+            idx_df['Date'] = pd.to_datetime(idx_df['Date'], format='%Y-%m-%d', errors='coerce')
+            idx_df = idx_df.sort_values('Date')
+            index_closes[idx_symbol] = idx_df.set_index('Date')['Close']
+        else:
+            print(f"Index data for {idx_symbol} not found. Rolling correlation features will be NaN.")
+
     for symbol in symbols:
         print(f'Loading data for {symbol}')
-        # yf_symbol = '^NSEI' if symbol == 'NIFTY' else "^NSEBANK" if symbol == 'BANKNIFTY' else f'{symbol}.NS'
-        
-        # Load the data
         data_path = f'./Underlying_data_vbt/{symbol}_{interval}.csv'
         data_path = os.path.join(data_path)
         if not os.path.exists(data_path):
@@ -286,31 +301,78 @@ def add_features(symbols, interval='1d'):
         else:
             data = pd.read_csv(data_path, parse_dates=True)
             data['Date'] = pd.to_datetime(data['Date'], format='%Y-%m-%d', errors='coerce')
-        
+            data = data.sort_values('Date')
+
         # Apply feature engineering using callme
         feat_eng = FeatureEngineering(data)
         data = feat_eng.callme(data)
-        
+
         # Add GARCH volatility
         data['garch_vol'] = garch_vol(symbol).values
         data['garch_vol'] = data['garch_vol'].bfill()
         data['garch_vol_pct'] = data['garch_vol'].diff()
-        # Calculate percentiles
         data['garch_vol_percentile'] = [np.round(percentileofscore(data['garch_vol'], i),0) for i in data['garch_vol'] ]
         data['garch_vol_percentile'] = data['garch_vol_percentile'].bfill()
-    
+
+        # --- Add 21-day rolling correlation with NIFTY and BANKNIFTY ---
+        data = data.set_index('Date')
+        if 'Close' in data.columns:
+            for idx_symbol in index_symbols:
+                if idx_symbol in index_closes:
+                    # Align dates and calculate rolling correlation
+                    combined = pd.DataFrame({
+                        symbol: data['Close'],
+                        idx_symbol: index_closes[idx_symbol]
+                    }).dropna()
+                    rolling_corr = combined[symbol].rolling(21).corr(combined[idx_symbol])
+                    # Reindex to all dates in data
+                    data[f'corr21_{idx_symbol}'] = rolling_corr.reindex(data.index)
+                else:
+                    data[f'corr21_{idx_symbol}'] = np.nan
+        data = data.reset_index()
+
+        # --- Add Hamilton Markov Regime Switching features internally ---
+        try:
+            returns = data['Returns'].dropna()
+            if len(returns) >= 100:
+                y = returns.copy()
+                y.index = data.loc[returns.index, 'Date']
+                y = y[~y.index.duplicated(keep='first')]
+                model = MarkovRegression(y, k_regimes=2, trend='c', switching_variance=True)
+                res = model.fit(disp=False)
+                markov_idx = y.index
+                for i in range(2):
+                    data.loc[data['Date'].isin(markov_idx), f'regime_{i}_prob'] = res.smoothed_marginal_probabilities[i].values
+                data.loc[data['Date'].isin(markov_idx), 'predicted_regime'] = res.smoothed_marginal_probabilities.idxmax(axis=1).values
+                data.loc[data['Date'].isin(markov_idx), 'hamilton_state'] = res.smoothed_marginal_probabilities.values.argmax(axis=1)
+        except Exception as e:
+            print(f"Hamilton Markov failed for {symbol}: {e}")
+
+        # --- Add Hidden Markov Model features internally ---
+        try:
+            hmm_returns = data['Returns'].dropna().values.reshape(-1, 1)
+            if len(hmm_returns) >= 100:
+                model = GaussianHMM(n_components=2, covariance_type="full", n_iter=200, random_state=42)
+                model.fit(hmm_returns)
+                hidden_states = model.predict(hmm_returns)
+                posteriors = model.predict_proba(hmm_returns)
+                hmm_idx = data['Returns'].dropna().index
+                data.loc[hmm_idx, 'hmm_state'] = hidden_states
+                for i in range(2):
+                    data.loc[hmm_idx, f'state_{i}_prob'] = posteriors[:, i]
+        except Exception as e:
+            print(f"Hidden Markov failed for {symbol}: {e}")
+
         # Ensure 'Date' is a column, not index
         if 'Date' not in data.columns:
             data.reset_index(inplace=True)
-        # Convert 'Date' to string for JSON serialization
         data['Date'] = data['Date'].dt.strftime('%Y-%m-%d')
-        
+
         # Save the engineered features to a new CSV file
         new_dir = f'./Engineered_data'
         os.makedirs(new_dir, exist_ok=True)
         file_name = f'{symbol}_{interval}_features.csv'
         file_path = os.path.join(new_dir, file_name)
-        # data.to_csv(file_path, index=True)
         data.to_json(file_path.replace('.csv', '.json'), orient='records', lines=True)
         print(f"Feature engineered data for {symbol} saved successfully.")
     
