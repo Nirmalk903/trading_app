@@ -250,6 +250,7 @@ for symbol, df in engineered_data.items():
         "Daily Return": latest.get("Returns", None),
         "GARCH Volatility": latest.get("garch_vol", None),
         "GARCH Volatility Percentile": latest.get("garch_vol_percentile", None),
+        "Vol_Change": latest.get("garch_vol_pct", None),
         "Daily CPR": latest.get("dCPR", None),
         "RSI": latest.get("RSI", None),
         "RSI Percentile": latest.get("RSI_percentile", None),
