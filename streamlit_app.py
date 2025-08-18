@@ -265,7 +265,7 @@ if summary_rows:
     summary_all_df = summary_all_df.drop(columns=["Date"])
 
     # Keep a copy of the original numeric columns for sorting
-    numeric_cols = ["Latest Price", "Daily Return", "GARCH Volatility", "GARCH Volatility Percentile",
+    numeric_cols = ["Latest Price", "Daily Return", "GARCH Volatility", "GARCH Volatility Percentile","Vol_Change",
                     "Daily CPR", "RSI", "RSI Percentile", "Weekly RSI", "Weekly RSI Percentile"]
 
     # Convert numeric columns to float for sorting
