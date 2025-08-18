@@ -290,7 +290,7 @@ if summary_rows:
             )
         elif col == "Vol_Change":
             summary_all_df[col] = summary_all_df[col].apply(
-                lambda x: f"{x*100:.1f}%" if pd.notnull(x) and isinstance(x, (int, float, np.floating)) else ""
+                lambda x: f"{x:.1f}%" if pd.notnull(x) and isinstance(x, (int, float, np.floating)) else ""
             )
         elif col in numeric_cols and col not in ["Daily Return", "Vol_Change"]:
             summary_all_df[col] = summary_all_df[col].apply(
