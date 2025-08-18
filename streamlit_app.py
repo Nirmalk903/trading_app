@@ -286,10 +286,15 @@ if summary_rows:
     for col in summary_all_df.columns:
         if col == "Daily Return":
             summary_all_df[col] = summary_all_df[col].apply(
-                lambda x: f"{x*100:.1f}%" if pd.notnull(x) else ""
+                lambda x: f"{x*100:.1f}%" if pd.notnull(x) and isinstance(x, (int, float, np.floating)) else ""
             )
-        elif col in numeric_cols and col != "Daily Return":
-            summary_all_df[col] = summary_all_df[col].apply(lambda x: f"{x:.0f}" if pd.notnull(x) else "")
+        elif col == "Vol_Change":
+            summary_all_df[col] = summary_all_df[col].apply(
+                lambda x: f"{x*100:.1f}%" if pd.notnull(x) and isinstance(x, (int, float, np.floating)) else ""
+            )
+        elif col in numeric_cols and col not in ["Daily Return", "Vol_Change"]:
+            summary_all_df[col] = summary_all_df[col].apply(
+                lambda x: f"{x:.0f}" if pd.notnull(x) else "")
 
     # Reset index to start from 1
     summary_all_df.index = summary_all_df.index + 1
