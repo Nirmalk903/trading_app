@@ -73,59 +73,68 @@ def fetch_live_options_data(symbol):
 def fetch_and_save_options_chain(symbol):
     symbol = symbol.upper()
     print(f'printing option chain for {symbol}')
-    # data = fetch_options_data(symbol)
-    data = fetch_live_options_data(symbol)
-    # data['spot_price'] = data.loc['underlyingValue','records']
-    dates = pd.to_datetime(data.loc['expiryDates','records'],format='%d-%b-%Y')
-    max_expiry = dates[0]+timedelta(days=90)
-    expiry = [i.strftime('%d-%b-%Y') for i in dates if dates[0] <= i <= max_expiry]
-    
-    ls = []
-    for dt in expiry:
-        rawoptions = pd.DataFrame(data['records']['data']).fillna(0)
-        # rawoptions = rawoptions.query('expiryDates == @dt').reset_index(drop=True)
-        rawoptions = rawoptions[rawoptions['expiryDate']==dt].reset_index(drop=True)
-        
-        for i in range(0,len(rawoptions)):
-            calloi=callcoi=cltp=putoi=putcoi=pltp=iv=0
-            stp = rawoptions['strikePrice'][i]
-            if(rawoptions['CE'][i]==0):
-                calloi=callcoi=0
-            else:
-                calloi=rawoptions['CE'][i]['openInterest']
-                callcoi=rawoptions['CE'][i]['changeinOpenInterest']
-                cltp=rawoptions['CE'][i]['lastPrice']
-                civ=rawoptions['CE'][i]['impliedVolatility']
-            
-            if(rawoptions['PE'][i]==0):
-                putoi=putcoi=0
-            else:
-                putoi=rawoptions['PE'][i]['openInterest']
-                putcoi=rawoptions['PE'][i]['changeinOpenInterest']
-                pltp=rawoptions['PE'][i]['lastPrice']
-                piv=rawoptions['PE'][i]['impliedVolatility']
-                expiry = rawoptions['PE'][i]['expiryDate']
-            
-            optdata = {'Expiry':expiry,
-                       'call_oi':calloi,
-                       'call_change_oi':callcoi,
-                       'call_ltp':cltp, 
-                       'strike_price':stp,
-                        'strike_price':stp,
-                        'put_ltp':pltp,
-                        'put_oi':putoi,
-                        'put_change_oi':putcoi,
-                        'spot_price':data.loc['underlyingValue','records']}
-    
-            ls.append(optdata)
-        OptionChain = pd.DataFrame(ls)
-        # del ls
-        new_dir = f'./OptionChainJSON'
-        os.makedirs(new_dir, exist_ok=True)
-        file_path = os.path.join(new_dir, f'{symbol}_OptionChain.json')
-        OptionChain.to_json(file_path,orient='records')
-        # print(f"Option Chain for {symbol} saved")
-    return f'Option Chain Saved'
+    try:
+        data = fetch_live_options_data(symbol)
+        # Check if data is empty or not a DataFrame
+        if data is None or data.empty:
+            print(f"Warning: No data returned for {symbol}. Skipping.")
+            return f"No data for {symbol}"
+        # Check for required keys before proceeding
+        if 'records' not in data or 'expiryDates' not in data.loc[:, 'records']:
+            print(f"Warning: Invalid data structure for {symbol}. Skipping.")
+            return f"Invalid data for {symbol}"
+
+        dates = pd.to_datetime(data.loc['expiryDates', 'records'], format='%d-%b-%Y')
+        max_expiry = dates[0] + timedelta(days=90)
+        expiry = [i.strftime('%d-%b-%Y') for i in dates if dates[0] <= i <= max_expiry]
+
+        ls = []
+        for dt in expiry:
+            rawoptions = pd.DataFrame(data['records']['data']).fillna(0)
+            rawoptions = rawoptions[rawoptions['expiryDate'] == dt].reset_index(drop=True)
+
+            for i in range(len(rawoptions)):
+                calloi = callcoi = cltp = putoi = putcoi = pltp = iv = 0
+                stp = rawoptions['strikePrice'][i]
+                if rawoptions['CE'][i] == 0:
+                    calloi = callcoi = 0
+                else:
+                    calloi = rawoptions['CE'][i]['openInterest']
+                    callcoi = rawoptions['CE'][i]['changeinOpenInterest']
+                    cltp = rawoptions['CE'][i]['lastPrice']
+                    civ = rawoptions['CE'][i]['impliedVolatility']
+
+                if rawoptions['PE'][i] == 0:
+                    putoi = putcoi = 0
+                else:
+                    putoi = rawoptions['PE'][i]['openInterest']
+                    putcoi = rawoptions['PE'][i]['changeinOpenInterest']
+                    pltp = rawoptions['PE'][i]['lastPrice']
+                    piv = rawoptions['PE'][i]['impliedVolatility']
+                    expiry = rawoptions['PE'][i]['expiryDate']
+
+                optdata = {
+                    'Expiry': expiry,
+                    'call_oi': calloi,
+                    'call_change_oi': callcoi,
+                    'call_ltp': cltp,
+                    'strike_price': stp,
+                    'put_ltp': pltp,
+                    'put_oi': putoi,
+                    'put_change_oi': putcoi,
+                    'spot_price': data.loc['underlyingValue', 'records']
+                }
+
+                ls.append(optdata)
+            OptionChain = pd.DataFrame(ls)
+            new_dir = f'./OptionChainJSON'
+            os.makedirs(new_dir, exist_ok=True)
+            file_path = os.path.join(new_dir, f'{symbol}_OptionChain.json')
+            OptionChain.to_json(file_path, orient='records')
+        return f'Option Chain Saved'
+    except Exception as e:
+        print(f"Error fetching/saving option chain for {symbol}: {e}")
+        return f"Error for {symbol}"
 
 
 

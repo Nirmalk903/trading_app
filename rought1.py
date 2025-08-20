@@ -36,14 +36,15 @@ def fetch_and_enrich(symbol):
         elapsed = time.time() - start_time
         timeout = 180  # seconds
         if elapsed > timeout:
-            print(f"Skipping {symbol} option chain: took more than {timeout} seconds.")
+            print(f"Skipping {symbol} option chain: took more than {timeout} seconds (actual: {elapsed:.2f}s).")
             return False  # Indicate skip
-        # enrich_option_chain(symbol)
-        print(f"Successfully fetched and enriched data for {symbol} in {elapsed:.2f} seconds.")
+        enrich_option_chain(symbol)
+        total_elapsed = time.time() - start_time
+        print(f"Successfully fetched and enriched data for {symbol} in {total_elapsed:.2f} seconds.")
         return True  # Indicate success
     except Exception as e:
         print(f"Error fetching data for {symbol}: {e}")
-        return False  # Indicate failure
+        return
 
 def create_underlying_analytics(symbols):
     get_underlying_data_vbt(symbols, period='10y', interval='1d')
@@ -67,6 +68,10 @@ if __name__ == "__main__":
     create_underlying_analytics(symbols)
     # stock_earnings_calendar(symbols)
     # create_options_analytics(symbols, max_workers=4)
+    
+    # for symbol in symbols:
+    #     fetch_and_enrich(symbol)
+    
     # create_options_analytics(symbols[9:], max_workers=len(symbols[9:]))
 
 
