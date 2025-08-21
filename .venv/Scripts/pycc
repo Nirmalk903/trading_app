@@ -1,0 +1,3 @@
+#!C:\Users\nirma\OneDrive\MyProjects\trading_app\.venv\Scripts\python.exe
+from numba.pycc import main
+main()
