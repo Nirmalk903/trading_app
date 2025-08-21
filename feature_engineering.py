@@ -343,8 +343,8 @@ def add_features(symbols, interval='1d'):
                 res = model.fit(disp=False)
                 markov_idx = y.index
                 for i in range(2):
-                    data.loc[data['Date'].isin(markov_idx), f'regime_{i}_prob'] = res.smoothed_marginal_probabilities[i].values
-                data.loc[data['Date'].isin(markov_idx), 'predicted_regime'] = res.smoothed_marginal_probabilities.idxmax(axis=1).values
+                    data.loc[data['Date'].isin(markov_idx), f'hamilton_regime_{i}_prob'] = res.smoothed_marginal_probabilities[i].values
+                data.loc[data['Date'].isin(markov_idx), 'hamilton_pred_regime'] = res.smoothed_marginal_probabilities.idxmax(axis=1).values
                 data.loc[data['Date'].isin(markov_idx), 'hamilton_state'] = res.smoothed_marginal_probabilities.values.argmax(axis=1)
         except Exception as e:
             print(f"Hamilton Markov failed for {symbol}: {e}")
@@ -360,7 +360,7 @@ def add_features(symbols, interval='1d'):
                 hmm_idx = data['Returns'].dropna().index
                 data.loc[hmm_idx, 'hmm_state'] = hidden_states
                 for i in range(2):
-                    data.loc[hmm_idx, f'state_{i}_prob'] = posteriors[:, i]
+                    data.loc[hmm_idx, f'hmm_state_{i}_prob'] = posteriors[:, i]
         except Exception as e:
             print(f"Hidden Markov failed for {symbol}: {e}")
 
