@@ -308,7 +308,7 @@ if summary_rows:
     # --- Place the Refresh button and logic here ---
     if st.button("Refresh Summary Table", key="refresh_summary_table_bottom"):
         st.info("Refreshing summary table with latest engineered data...")
-        st.experimental_rerun()
+        # st.experimental_rerun()
 
 else:
     st.warning("No feature files found for the selected symbols.")

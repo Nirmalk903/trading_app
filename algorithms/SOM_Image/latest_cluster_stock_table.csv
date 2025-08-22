@@ -1,6 +1,7 @@
 SOM_cluster,symbol
-"(np.int64(0), np.int64(1))","HDFCBANK, ICICIBANK, M&M"
-"(np.int64(3), np.int64(0))","EICHERMOT, MARUTI, SBIN, TRENT"
-"(np.int64(3), np.int64(1))",HEROMOTOCO
-"(np.int64(3), np.int64(2))","AXISBANK, BAJAJ-AUTO, BAJFINANCE, NIFTY, RELIANCE, TATAMOTORS, TATASTEEL"
-"(np.int64(3), np.int64(3))",BANKNIFTY
+"(np.int64(0), np.int64(1))",NIFTY
+"(np.int64(0), np.int64(2))","HEROMOTOCO, HINDUNILVR"
+"(np.int64(0), np.int64(3))","AXISBANK, INFY, KOTAKBANK, LT, M&M, RELIANCE, SBIN, TCS"
+"(np.int64(1), np.int64(0))",BANKNIFTY
+"(np.int64(1), np.int64(3))","BAJFINANCE, ETERNAL"
+"(np.int64(3), np.int64(0))","BHARTIARTL, HDFCBANK, ICICIBANK"

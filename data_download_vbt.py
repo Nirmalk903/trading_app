@@ -96,8 +96,7 @@ def get_underlying_data_vbt(symbols, period='20y', interval='1d'):
                 new_data = pd.concat([Close, High, Low, Open, Volume], axis=1)
                 new_data.columns = ['Close', 'High', 'Low', 'Open', 'Volume']
                 new_data.reset_index(inplace=True)
-                new_data['Date'] = pd.to_datetime(new_data['Date'], format='%Y-%m-%d', errors='coerce')
-                new_data['Date'] = new_data['Date'].dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
+                new_data['Date'] = pd.to_datetime(new_data['Date'], utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
                 # Only append if there is new data
                 if not new_data.empty:
                     combined = pd.concat([existing_data, new_data], ignore_index=True)
@@ -151,6 +150,6 @@ def get_dates_from_most_active_files(folder='./Most_Active_Underlying'):
             dates.append(match.group(1))
     # dates_sorted = pd.to_datetime(sorted(dates, key=lambda x: datetime.strptime(x, "%d-%b-%Y")))
     return pd.to_datetime(sorted([dt_time.strptime(d, "%d-%b-%Y") for d in dates]))
-    
+
 
 

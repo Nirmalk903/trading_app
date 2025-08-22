@@ -42,6 +42,7 @@ class FeatureEngineering:
     # Ensure the index is a DatetimeIndex
         if not isinstance(X.index, pd.DatetimeIndex):
             X.set_index('Date', inplace=True)
+            # X = X.asfreq("B")
 
         self.logic = {'High': 'max', 'Low': 'min', 'Close': 'last'}
         df1 = X.sort_index()
@@ -316,7 +317,7 @@ def add_features(symbols, interval='1d'):
 
         # --- Add 21-day rolling correlation with NIFTY and BANKNIFTY ---
         data = data.set_index('Date')
-        data = data.asfreq('B')
+        # data = data.asfreq('B')
         if 'Close' in data.columns:
             for idx_symbol in index_symbols:
                 if idx_symbol in index_closes:
@@ -395,6 +396,7 @@ def update_features(symbols, interval='1d'):
         raw_data = pd.read_csv(data_path)
         raw_data['Date'] = pd.to_datetime(raw_data['Date'], format='%Y-%m-%d', errors='coerce')
         raw_data.set_index('Date', inplace=True)
+        # raw_data = raw_data.asfreq('B')  # Ensure business day frequency
 
         # Check if processed data already exists
         processed_path = f'./Engineered_data/{symbol}_{interval}_features.json'
@@ -402,6 +404,7 @@ def update_features(symbols, interval='1d'):
             processed_data = pd.read_json(processed_path, orient='records', lines=True)
             processed_data['Date'] = pd.to_datetime(processed_data['Date'], format='%Y-%m-%d', errors='coerce')
             processed_data.set_index('Date', inplace=True)
+            # processed_data = processed_data.asfreq('B')  # Ensure business day frequency
 
             # Find new data that needs to be processed
             new_data = raw_data.loc[~raw_data.index.isin(processed_data.index)]
