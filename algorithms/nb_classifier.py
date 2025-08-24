@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 from sklearn.naive_bayes import GaussianNB
 from sklearn.model_selection import train_test_split, StratifiedKFold
-from data_download_vbt import getdata_vbt, get_underlying_data_vbt, get_symbols, get_dates_from_most_active_files
+from data_download_vbt import get_symbols, get_dates_from_most_active_files
 from boruta import BorutaPy
 from sklearn.ensemble import RandomForestClassifier
 import time

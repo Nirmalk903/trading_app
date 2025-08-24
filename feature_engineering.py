@@ -3,13 +3,15 @@ import numpy as np
 # import pandas_ta as ta
 import os
 import vectorbt as vbt
-from volatility_modeling import garch_vol
+from volatility_modeling import garch_vol, getDailyVol
 from scipy.stats import percentileofscore
 from data_download_vbt import getdata_vbt, get_underlying_data_vbt, get_symbols,  get_dates_from_most_active_files
 from algorithms.hamilton_markov_model import apply_hamilton_regime_switching
 from algorithms.hidden_markov_model import apply_hidden_markov_model
 from statsmodels.tsa.regime_switching.markov_regression import MarkovRegression
 from hmmlearn.hmm import GaussianHMM
+from sklearn.mixture import GaussianMixture
+from algorithms.cusum_filter import getTEvents
 
 class FeatureEngineering:
     
@@ -36,7 +38,6 @@ class FeatureEngineering:
         X['Close2dCPR'] = X['Close']/ X['dCPR']
         
         return X
-    
     
     def wCPR(self, X):  # Creates weekly pivot range
     # Ensure the index is a DatetimeIndex
@@ -71,7 +72,7 @@ class FeatureEngineering:
         col = X.filter(regex='2d|2wCPR')
 
         for i in vol_lag:
-            for j in col:
+            for j in col:                                                                                                                                                               
                 X[f"{j}_{i}dVol"] = np.array(X[j].rolling(i).std()*np.sqrt(251))
         return X
     
@@ -114,7 +115,6 @@ class FeatureEngineering:
         X[f'DPO_{period}'] = X['Close'] - sma_shifted
             
         return X
-    
     
     # def cfo(self, X, period = 20):
     #     self.period = period
@@ -250,12 +250,20 @@ class FeatureEngineering:
 
         # Identify volatility squeezes
         X['Volatility_Squeeze'] = ((X['Bollinger_High'] - X['Bollinger_Low']) < 
-                                    (X['Keltner_High'] - X['Keltner_Low']))
+                                    (X['Keltner_High'] - X['Keltner_Low'])).astype(int)
         
+        return X
+    
+    def add_daily_vol(self, X):
+        if 'Date' in X.columns:
+            X = X.sort_values('Date')
+            X['Date'] = pd.to_datetime(X['Date'])
+            X = X.set_index('Date')
+            X['daily_vol'] = getDailyVol(X['Close'], span0=100)
+            X = X.reset_index()
         return X
 
 
-    
     def callme(self, X):
         X = self.returns(X)
         X = self.dCPR(X)
@@ -271,10 +279,13 @@ class FeatureEngineering:
         X = self.rsi(X)
         X = self.bollinger_bands(X, period=20, std=2)
         X = self.keltner_channel(X, period=20, atr_multiplier=1.5)
+        X = self.identify_volatility_squeezes(X, period=20)
+        X = self.add_daily_vol(X)
 
         print('Feature Engineering Completed')
         return X
-
+    
+    
 
 
 def add_features(symbols, interval='1d'):
@@ -364,6 +375,33 @@ def add_features(symbols, interval='1d'):
                     data.loc[hmm_idx, f'hmm_state_{i}_prob'] = posteriors[:, i]
         except Exception as e:
             print(f"Hidden Markov failed for {symbol}: {e}")
+
+        # --- Add Gaussian Mixture Model features internally ---
+        try:
+            gmm_returns = data['Returns'].dropna().values.reshape(-1, 1)
+            if len(gmm_returns) >= 100:
+                gmm_model = GaussianMixture(n_components=2, covariance_type="full", n_init=10, random_state=42)
+                gmm_model.fit(gmm_returns)
+                gmm_states = gmm_model.predict(gmm_returns)
+                gmm_posteriors = gmm_model.predict_proba(gmm_returns)
+                gmm_idx = data['Returns'].dropna().index
+                data.loc[gmm_idx, 'gmm_state'] = gmm_states
+                for i in range(2):
+                    data.loc[gmm_idx, f'gmm_state_{i}_prob'] = gmm_posteriors[:, i]
+        except Exception as e:
+            print(f"Gaussian Mixture Model failed for {symbol}: {e}")
+
+        # --- Apply CUSUM filter events on Close price ---
+        try:
+            h = data['Close'].std() * 0.25  # You can adjust the threshold as needed
+            data['cusum_event'] = 0
+            if 'Close' in data.columns:
+                data = data.sort_values('Date')
+                data['Date'] = pd.to_datetime(data['Date'])
+                t_events = getTEvents(data.set_index('Date')['Close'], h)
+                data.loc[data['Date'].isin(t_events), 'cusum_event'] = 1
+        except Exception as e:
+            print(f"CUSUM filter failed for {symbol}: {e}")
 
         # Ensure 'Date' is a column, not index
         if 'Date' not in data.columns:
