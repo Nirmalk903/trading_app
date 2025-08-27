@@ -1,8 +1,14 @@
 # Core implementation (EMA Tick Imbalance Bars)
+
+import os
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from dataclasses import dataclass
 from typing import Callable, Optional, Tuple, List, Union
 import numpy as np
 import pandas as pd
+from data_download_vbt import get_symbols, get_dates_from_most_active_files
+
 
 # utility functions
 def ewma(arr: np.ndarray, window: int) -> np.ndarray:
@@ -365,6 +371,8 @@ display(thr_df.tail(10))
 
 # Candlestick chart of EMA Tick Imbalance Bars
 import plotly.graph_objects as go
+import plotly.io as pio
+pio.renderers.default = "browser"
 
 fig = go.Figure(
     data=[
@@ -388,3 +396,40 @@ fig.update_layout(
 )
 
 fig.show()
+
+# Applicaton
+
+def apply_ema_tick_imbalance_bars_all_symbols(engineered_dir, results_dir):
+    symbols = get_symbols(get_dates_from_most_active_files()[-1], top_n=17)[0]
+    os.makedirs(results_dir, exist_ok=True)
+    for symbol in symbols:
+        file_path = os.path.join(engineered_dir, f"{symbol}_1d_features.json")
+        if not os.path.exists(file_path):
+            continue
+        df = pd.read_json(file_path, orient='records', lines=True)
+        if not {'Date', 'Close', 'Volume'}.issubset(df.columns):
+            continue
+        df = df.sort_values("Date")
+        df["date_time"] = pd.to_datetime(df["Date"])
+        df = df.rename(columns={"Close": "price", "Volume": "volume"})
+        # Only keep required columns
+        tick_df = df[["date_time", "price", "volume"]].copy()
+        # Apply EMA Tick Imbalance Bars
+        bars_df, thr_df = get_ema_tick_imbalance_bars(
+            tick_df,
+            num_prev_bars=3,
+            expected_imbalance_window=200,
+            exp_num_ticks_init=400,
+            exp_num_ticks_constraints=(50, 2000),
+            analyse_thresholds=True
+        )
+        # Save bars to CSV
+        bars_path = os.path.join(results_dir, f"{symbol}_ema_tick_imbalance_bars.csv")
+        bars_df.to_csv(bars_path, index=False)
+        print(f"Saved EMA Tick Imbalance Bars for {symbol} to {bars_path}")
+
+# Example usage:
+if __name__ == "__main__":
+    engineered_dir = "./Engineered_data"
+    results_dir = "./results/tick_imbalance"
+    apply_ema_tick_imbalance_bars_all_symbols(engineered_dir, results_dir)

@@ -7,7 +7,15 @@ from datetime import datetime as dt_time
 import time
 import re
 
-def get_symbols(dt,top_n=17):
+RENAME_DICT = {
+    'Open': 'Open',
+    'High': 'High',
+    'Low': 'Low',
+    'Close': 'Close',
+    'Volume': 'Volume'
+}
+
+def get_symbols(dt, top_n=17):
     dt = dt.strftime('%d-%b-%Y')
     nifty_fity_path = os.path.join('./Nifty_Fifty', "MW-NIFTY-50.csv")
     if os.path.exists(nifty_fity_path):
@@ -16,56 +24,48 @@ def get_symbols(dt,top_n=17):
         liquid_symbols = nifty_symbols + ['NIFTY', 'BANKNIFTY']
     else:
         print(f"File {nifty_fity_path} does not exist.")
-    
+        return [], []
+
     file_name = f'LA-MOST-ACTIVE-UNDERLYING-{dt}.csv'
     file_path = os.path.join('./Most_Active_Underlying', file_name)
     if os.path.exists(file_path):
         most_active = pd.read_csv(file_path)
-        # print(most_active.head())
-        most_active = most_active[~most_active['Symbol'].isin(['MIDCPNIFTY', 'FINNIFTY','NIFTYIT','NIFTYNXT50','NIFTYPSUBANK','NIFTYINFRA','NIFTYMETAL','NIFTYPHARMA','NIFTYMEDIA','NIFTYAUTO','NIFTYCONSUMPTION','NIFTYENERGY','NIFTYFMCG','NIFTYHEALTHCARE'])].reset_index(drop=True)
+        most_active = most_active[~most_active['Symbol'].isin([
+            'MIDCPNIFTY', 'FINNIFTY', 'NIFTYIT', 'NIFTYNXT50', 'NIFTYPSUBANK',
+            'NIFTYINFRA', 'NIFTYMETAL', 'NIFTYPHARMA', 'NIFTYMEDIA',
+            'NIFTYAUTO', 'NIFTYCONSUMPTION', 'NIFTYENERGY', 'NIFTYFMCG',
+            'NIFTYHEALTHCARE'
+        ])].reset_index(drop=True)
         most_active = most_active[most_active['Symbol'].isin(liquid_symbols)].reset_index(drop=True)
-        most_active['YF_Symbol'] = most_active['Symbol'].apply(lambda x: '^NSEI' if x == 'NIFTY' else '^NSEBANK' if x == 'BANKNIFTY' else f'{x}.NS')
+        most_active['YF_Symbol'] = most_active['Symbol'].apply(
+            lambda x: '^NSEI' if x == 'NIFTY' else '^NSEBANK' if x == 'BANKNIFTY' else f'{x}.NS'
+        )
         most_active = most_active.sort_values(by='Value (₹ Lakhs) - Total', ascending=False).reset_index(drop=True)
         most_active = most_active.head(top_n)
     else:
         print(f"File {file_name} does not exist.")
-        
+        return [], []
+
     symbols = most_active['Symbol'].tolist()
     yf_symbols = most_active['YF_Symbol'].tolist()
     return symbols, yf_symbols
 
-
 def getdata_vbt(symbols, period='20y', interval='1d'):
-    
-    yf_symbol = ['^NSEI' if symbol == 'NIFTY' else '^NSEBANK' if symbol == 'BANKNIFTY' else f'{symbol}.NS' for symbol in symbols]
-    
     for symbol in symbols:
         print(f'Loading data for {symbol}')
         yf_symbol = "^NSEI" if symbol == 'NIFTY' else "^NSEBANK" if symbol == 'BANKNIFTY' else f'{symbol}.NS'
-        
         new_dir = f'./Underlying_data_vbt'
         os.makedirs(new_dir, exist_ok=True)
         file_name = f'{symbol}_{interval}.csv'
-        file_path = os.path.join('./Underlying_data_vbt', file_name)
-        
-        Close = vbt.YFData.download(yf_symbol, period=period, interval=interval).get("Close")
-        High = vbt.YFData.download(yf_symbol, period=period, interval=interval).get("High")
-        Low = vbt.YFData.download(yf_symbol, period=period, interval=interval).get("Low")
-        Open = vbt.YFData.download(yf_symbol, period=period, interval=interval).get("Open")
-        Volume = vbt.YFData.download(yf_symbol, period=period, interval=interval).get("Volume")
-        
-        data = pd.concat([Close, High, Low, Open, Volume], axis=1)
-        data.columns = ['Close', 'High', 'Low', 'Open', 'Volume']
-        
+        file_path = os.path.join(new_dir, file_name)
+
+        data = vbt.YFData.download(yf_symbol, period=period, interval=interval).data[yf_symbol]
+        data = data.rename(columns={'Adj Close': 'Adj_Close', **RENAME_DICT})
         data.reset_index(inplace=True)
-        data['Date'] = pd.to_datetime(data['Date'], format='%Y-%m-%d', errors='coerce')
-        data['Date'] = data['Date'].dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
-        
+        data['Date'] = pd.to_datetime(data['Date'], utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
         data.to_csv(file_path, index=False)
         print(f"Data for {symbol} saved successfully.")
-    
     return None
-
 
 def get_underlying_data_vbt(symbols, period='20y', interval='1d'):
     for idx, symbol in enumerate(symbols):
@@ -87,14 +87,8 @@ def get_underlying_data_vbt(symbols, period='20y', interval='1d'):
                 else:
                     start = (pd.to_datetime(last_date) + pd.Timedelta(days=1)).strftime('%Y-%m-%d')
                 # Download only data after last_date
-                # start = (pd.to_datetime(last_date) + pd.Timedelta(days=1)).strftime('%Y-%m-%d')
-                Close = vbt.YFData.download(yf_symbol, start=start, interval=interval).get("Close")
-                High = vbt.YFData.download(yf_symbol, start=start, interval=interval).get("High")
-                Low = vbt.YFData.download(yf_symbol, start=start, interval=interval).get("Low")
-                Open = vbt.YFData.download(yf_symbol, start=start, interval=interval).get("Open")
-                Volume = vbt.YFData.download(yf_symbol, start=start, interval=interval).get("Volume")
-                new_data = pd.concat([Close, High, Low, Open, Volume], axis=1)
-                new_data.columns = ['Close', 'High', 'Low', 'Open', 'Volume']
+                new_data = vbt.YFData.download(yf_symbol, start=start, interval=interval).data[yf_symbol]
+                new_data = new_data.rename(columns={'Adj Close': 'Adj_Close', **RENAME_DICT})
                 new_data.reset_index(inplace=True)
                 new_data['Date'] = pd.to_datetime(new_data['Date'], utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
                 # Only append if there is new data
@@ -107,38 +101,22 @@ def get_underlying_data_vbt(symbols, period='20y', interval='1d'):
                     print(f"No new data for {symbol}.")
             else:
                 # If file exists but is empty, download all data
-                Close = vbt.YFData.download(yf_symbol, period=period, interval=interval).get("Close")
-                High = vbt.YFData.download(yf_symbol, period=period, interval=interval).get("High")
-                Low = vbt.YFData.download(yf_symbol, period=period, interval=interval).get("Low")
-                Open = vbt.YFData.download(yf_symbol, period=period, interval=interval).get("Open")
-                Volume = vbt.YFData.download(yf_symbol, period=period, interval=interval).get("Volume")
-                data = pd.concat([Close, High, Low, Open, Volume], axis=1)
-                data.columns = ['Close', 'High', 'Low', 'Open', 'Volume']
+                data = vbt.YFData.download(yf_symbol, period=period, interval=interval).data[yf_symbol]
+                data = data.rename(columns={'Adj Close': 'Adj_Close', **RENAME_DICT})
                 data.reset_index(inplace=True)
-                data['Date'] = pd.to_datetime(data['Date'], format='%Y-%m-%d', errors='coerce')
-                data['Date'] = data['Date'].dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
+                data['Date'] = pd.to_datetime(data['Date'], utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
                 data.to_csv(file_path, index=False)
                 print(f"Data for {symbol} saved successfully.")
         else:
             # If file does not exist, download all data
-            Close = vbt.YFData.download(yf_symbol, period=period, interval=interval).get("Close")
-            High = vbt.YFData.download(yf_symbol, period=period, interval=interval).get("High")
-            Low = vbt.YFData.download(yf_symbol, period=period, interval=interval).get("Low")
-            Open = vbt.YFData.download(yf_symbol, period=period, interval=interval).get("Open")
-            Volume = vbt.YFData.download(yf_symbol, period=period, interval=interval).get("Volume")
-            data = pd.concat([Close, High, Low, Open, Volume], axis=1)
-            data.columns = ['Close', 'High', 'Low', 'Open', 'Volume']
+            data = vbt.YFData.download(yf_symbol, period=period, interval=interval).data[yf_symbol]
+            data = data.rename(columns={'Adj Close': 'Adj_Close', **RENAME_DICT})
             data.reset_index(inplace=True)
-            data['Date'] = pd.to_datetime(data['Date'], format='%Y-%m-%d', errors='coerce')
-            data['Date'] = data['Date'].dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
+            data['Date'] = pd.to_datetime(data['Date'], utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
             data.to_csv(file_path, index=False)
-            print(f"Data for {int(idx)+1}: {symbol} saved successfully.")
+            print(f"Data for {symbol} saved successfully.")
 
     return None
-
-# get_underlying_data_vbt(['ITC'], period='10y', interval='1d')
-
-
 
 def get_dates_from_most_active_files(folder='./Most_Active_Underlying'):
     # Regex to extract date from filenames like LA-MOST-ACTIVE-UNDERLYING-23-May-2024.csv
@@ -148,7 +126,6 @@ def get_dates_from_most_active_files(folder='./Most_Active_Underlying'):
         match = date_pattern.match(fname)
         if match:
             dates.append(match.group(1))
-    # dates_sorted = pd.to_datetime(sorted(dates, key=lambda x: datetime.strptime(x, "%d-%b-%Y")))
     return pd.to_datetime(sorted([dt_time.strptime(d, "%d-%b-%Y") for d in dates]))
 
 

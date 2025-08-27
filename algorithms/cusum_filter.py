@@ -38,7 +38,7 @@ def plot_cusum_events_all(symbols, engineered_dir, results_dir):
             df = df.sort_values("Date")
             df["Date"] = pd.to_datetime(df["Date"])
             df = df.set_index("Date")
-            h = df["Close"].std() * 0.25
+            h = df["Close"].std() * 0.2
             t_events = getTEvents(df["Close"], h)
             plt.figure(figsize=(12, 6))
             plt.plot(df.index, df["Close"], label="Close Price")
@@ -66,7 +66,7 @@ def plot_garch_cusum_events_all(symbols, engineered_dir, results_dir):
             df = df.sort_values("Date")
             df["Date"] = pd.to_datetime(df["Date"])
             df = df.set_index("Date")
-            h = df["garch_vol"].std() * 0.1
+            h = df["garch_vol"].std() * 0.25
             t_events = getTEvents(df["garch_vol"], h)
             plt.figure(figsize=(12, 6))
             plt.plot(df.index, df["garch_vol"], label="GARCH Volatility")
@@ -85,5 +85,5 @@ engineered_dir = "./Engineered_data"
 results_dir = "./results"
 symbols = get_symbols(get_dates_from_most_active_files()[-1], top_n=25)[0]
 
-# plot_cusum_events_all(symbols, engineered_dir, results_dir)
+plot_cusum_events_all(symbols, engineered_dir, results_dir)
 # plot_garch_cusum_events_all(symbols, engineered_dir, results_dir)

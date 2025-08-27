@@ -190,6 +190,6 @@ def apply_triple_barrier_to_all_symbols(engineered_dir, results_dir, numDays=5):
 # Example usage:
 if __name__ == "__main__":
     engineered_dir = "./Engineered_data"
-    results_dir = "./results"
+    results_dir = "./results/tripple_barrier"
     apply_triple_barrier_to_all_symbols(engineered_dir, results_dir, numDays=10)
 
