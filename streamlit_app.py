@@ -20,11 +20,35 @@ st.title("Trading Analytics Dashboard")
 
 st.write("Use the controls below to select date and filter symbols, then click 'Run Analytics'.")
 
-# Select date and top N symbols
-dates = get_dates_from_most_active_files()
-# Convert to string (date only, no time)
-dates = [str(pd.to_datetime(d).date()) for d in dates]
-selected_date = st.selectbox("Select Date", dates[::-1])
+# Select date and top N symbols (robust handling of various return types)
+dates_raw = get_dates_from_most_active_files()
+# normalize into a list of pandas Timestamps safely
+dates_list = []
+if dates_raw is None:
+    dates_list = []
+else:
+    try:
+        # if dates_raw is iterable (Index, list, ndarray)
+        dates_list = list(pd.to_datetime(list(dates_raw)))
+    except Exception:
+        try:
+            # single value fallback
+            dates_list = [pd.to_datetime(dates_raw)]
+        except Exception:
+            dates_list = []
+
+if len(dates_list) > 0:
+    dates_list = sorted(dates_list)
+    date_strs = [d.date().isoformat() for d in dates_list]
+    # show newest first in the selectbox and default-select newest
+    selected_date = st.selectbox("Select Date", date_strs[::-1], index=0)
+else:
+    # fallback: no most-active dates available
+    today_str = pd.Timestamp.today().date().isoformat()
+    st.warning("No most-active dates found — defaulting to today.")
+    selected_date = st.selectbox("Select Date", [today_str], index=0)
+
+# Select number of top symbols
 top_n = st.slider("Number of Top Symbols", 1, 20, 10)
 
 # Convert selected_date string back to datetime for get_symbols
@@ -65,6 +89,19 @@ if st.button("Run Analytics"):
     seconds = int(elapsed % 60)
     st.success(f"Feature engineering completed for selected symbols! Time taken: {minutes} min {seconds} sec.")
     progress_bar.empty()
+    # Refresh the app so the UI reads newly written engineered files / images
+    try:
+        # preferred API (works on many Streamlit versions)
+        st.experimental_rerun()
+    except AttributeError:
+        # fallback: raise Streamlit's internal RerunException if available
+        try:
+            from streamlit.runtime.scriptrunner.script_runner import RerunException
+            raise RerunException()
+        except Exception:
+            # final fallback: ask user to manually reload and stop execution
+            st.warning("Refresh requested but automatic rerun is not available in this Streamlit build. Please reload the page.")
+            st.stop()
 
 
 # Plot GARCH vs RSI
@@ -99,12 +136,15 @@ num_days = period_options[selected_period_label]
 if st.button("Show Historical Chart"):
     feature_file = os.path.join("Engineered_data", f"{hist_symbol}_1d_features.json")
     if os.path.exists(feature_file):
+        # read fresh, parse dates robustly
         df_hist = pd.read_json(feature_file, orient='records', lines=True)
         if "Date" not in df_hist.columns:
+            # try to recover Date from index or first column
             if df_hist.index.name == "Date":
                 df_hist = df_hist.reset_index()
-        if "Date" not in df_hist.columns or df_hist.empty:
-            st.warning(f"Feature file for {hist_symbol} is empty or missing 'Date' column.")
+        df_hist["Date"] = pd.to_datetime(df_hist.get("Date", None), errors="coerce")
+        if df_hist["Date"].isna().all():
+            st.warning(f"Feature file for {hist_symbol} is missing parsable 'Date' values.")
         else:
             df_hist = df_hist.sort_values("Date")
             df_hist["Date"] = pd.to_datetime(df_hist["Date"])
@@ -137,7 +177,7 @@ if st.button("Show Historical Chart"):
             summary_df = pd.DataFrame([summary_dict])
 
             # --- Display as tabular format with heading ---
-            st.subheader(f"Stock Analysis - {latest['Date'].date()}")
+            st.subheader(f"Stock Analysis - {selected_date}")
             st.table(summary_df)
 
             # --- Existing plotting code ---
@@ -233,37 +273,66 @@ if st.button("Show Historical Chart"):
 summary_rows = []
 for symbol in selected_symbols:
     feature_file = os.path.join("Engineered_data", f"{symbol}_1d_features.json")
-    if os.path.exists(feature_file):
+    if not os.path.exists(feature_file):
+        continue
+
+    # always read fresh from disk to avoid stale cached data
+    try:
         df = pd.read_json(feature_file, orient='records', lines=True)
-        if "Date" not in df.columns:
-            if df.index.name == "Date":
-                df = df.reset_index()
-        if "Date" not in df.columns or df.empty:
-            continue
-        df = df.sort_values("Date")
-        df["Date"] = pd.to_datetime(df["Date"])
-        latest = df.iloc[-1]
-        summary_rows.append({
-            "Symbol": symbol,
-            "Date": latest["Date"].date(),
-            "Latest Price": latest["Close"],
-            "Daily Return": latest.get("Returns", None),
-            "GARCH Volatility": latest.get("garch_vol", None),
-            "GARCH Volatility Percentile": latest.get("garch_vol_percentile", None),
-            "Vol_Change": latest.get("garch_vol_pct", None),
-            "Daily CPR": latest.get("dCPR", None),
-            "RSI": latest.get("RSI", None),
-            "RSI Percentile": latest.get("RSI_percentile", None),
-            "Weekly RSI": latest.get("RSI_weekly", None),
-            "Weekly RSI Percentile": latest.get("RSI_percentile_weekly", None)
-        })
+    except Exception:
+        continue
 
+    # recover Date column if stored as index
+    if "Date" not in df.columns and df.index.name == "Date":
+        df = df.reset_index()
+
+    if df.empty:
+        continue
+
+    # robust date parsing
+    df["Date"] = pd.to_datetime(df.get("Date", None), errors="coerce")
+
+    # skip if no parsable dates
+    if df["Date"].isna().all():
+        continue
+
+    # find the true latest date (use max, not last row)
+    max_date = df["Date"].max()
+    latest_rows = df.loc[df["Date"] == max_date]
+
+    if latest_rows.empty:
+        continue
+
+    # if multiple rows have same latest date pick the last one (most recent in file)
+    latest = latest_rows.sort_values("Date").iloc[-1]
+
+    summary_rows.append({
+        "Symbol": symbol,
+        "Date": pd.to_datetime(latest["Date"]).date(),
+        "Latest Price": latest.get("Close", np.nan),
+        "Daily Return": latest.get("Returns", None),
+        "GARCH Volatility": latest.get("garch_vol", None),
+        "GARCH Volatility Percentile": latest.get("garch_vol_percentile", None),
+        "Vol_Change": latest.get("garch_vol_pct", None),
+        "Daily CPR": latest.get("dCPR", None),
+        "RSI": latest.get("RSI", None),
+        "RSI Percentile": latest.get("RSI_percentile", None),
+        "Weekly RSI": latest.get("RSI_weekly", None),
+        "Weekly RSI Percentile": latest.get("RSI_percentile_weekly", None)
+    })
+
+# compute header latest date from collected rows (use max across symbols)
 if summary_rows:
+    overall_latest = max([r["Date"] for r in summary_rows])
     summary_all_df = pd.DataFrame(summary_rows)
-    # Remove the 'Date' column and get the latest date for the header
-    latest_date = summary_all_df["Date"].iloc[0] if "Date" in summary_all_df.columns else ""
+    # Remove the 'Date' column and keep overall_latest for header
     summary_all_df = summary_all_df.drop(columns=["Date"])
+    latest_date = overall_latest
+else:
+    summary_all_df = pd.DataFrame()
+    latest_date = ""
 
+if not summary_all_df.empty:
     # Keep a copy of the original numeric columns for sorting
     numeric_cols = ["Latest Price", "Daily Return", "GARCH Volatility", "GARCH Volatility Percentile","Vol_Change",
                     "Daily CPR", "RSI", "RSI Percentile", "Weekly RSI", "Weekly RSI Percentile"]
@@ -302,7 +371,7 @@ if summary_rows:
     styled_df = summary_all_df.style.map(highlight_daily_return, subset=['Daily Return']) \
                                     .set_properties(**{'text-align': 'center'})
 
-    st.subheader(f"Stock Analysis - {latest_date}")
+    st.subheader(f"Stock Analysis - {selected_date}")
     st.dataframe(styled_df, use_container_width=True)
 
     # --- Place the Refresh button and logic here ---

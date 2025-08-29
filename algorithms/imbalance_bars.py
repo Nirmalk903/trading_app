@@ -433,3 +433,4 @@ if __name__ == "__main__":
     engineered_dir = "./Engineered_data"
     results_dir = "./results/tick_imbalance"
     apply_ema_tick_imbalance_bars_all_symbols(engineered_dir, results_dir)
+                       
