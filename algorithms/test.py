@@ -65,11 +65,12 @@ def analyze_bars(csv_path: str, out_png: str, title_prefix: str):
 if __name__ == "__main__":
     PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     # Dollar imbalance bars
-    dib_csv = os.path.join(PROJECT_ROOT, "results", "dollar_imbalance", "HDFCBANK_dollar_imbalance_bars.csv")
-    dib_png = os.path.join(PROJECT_ROOT, "results", "dollar_imbalance", "HDFCBANK_dib_acf.png")
-    analyze_bars(dib_csv, dib_png, "HDFCBANK Dollar-Imbalance-Bar Returns")
+    symbol = 'RELIANCE'
+    dib_csv = os.path.join(PROJECT_ROOT, "results", "dollar_imbalance", F"{symbol}_dollar_imbalance_bars.csv")
+    dib_png = os.path.join(PROJECT_ROOT, "results", "dollar_imbalance", F"{symbol}_dib_acf.png")
+    analyze_bars(dib_csv, dib_png, F"{symbol} Dollar-Imbalance-Bar Returns")
 
     # Tick imbalance bars
-    tib_csv = os.path.join(PROJECT_ROOT, "results", "tick_imbalance", "HDFCBANK_ema_tick_imbalance_bars.csv")
-    tib_png = os.path.join(PROJECT_ROOT, "results", "tick_imbalance", "HDFCBANK_tib_acf.png")
-    analyze_bars(tib_csv, tib_png, "HDFCBANK Tick-Imbalance-Bar Returns")
+    tib_csv = os.path.join(PROJECT_ROOT, "results", "tick_imbalance", F"{symbol}_ema_tick_imbalance_bars.csv")
+    tib_png = os.path.join(PROJECT_ROOT, "results", "tick_imbalance", F"{symbol}_tib_acf.png")
+    analyze_bars(tib_csv, tib_png, F"{symbol} Tick-Imbalance-Bar Returns")

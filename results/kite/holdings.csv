@@ -1,0 +1,4 @@
+tradingsymbol,exchange,instrument_token,isin,product,price,quantity,used_quantity,t1_quantity,realised_quantity,authorised_quantity,authorised_date,opening_quantity,short_quantity,collateral_quantity,collateral_type,discrepancy,average_price,last_price,close_price,pnl,day_change,day_change_percentage,mtf_quantity,mtf_used_quantity,mtf_average_price,mtf_value,mtf_initial_margin
+BLUESTONE,BSE,139387908,INE304W01038,CNC,0,36,0,0,36,0,2025-08-31 00:00:00,36,0,0,,False,517.0,534.45,522.7,628.2000000000016,11.75,2.2479433709584846,0,0,0,0,0
+JSWCEMENT,BSE,139386884,INE718I01012,CNC,0,102,0,0,102,0,2025-08-31 00:00:00,102,0,0,,False,147.0,148.5,148.15,153.0,0.3499999999999943,0.23624704691190976,0,0,0,0,0
+YESBANK,BSE,136357892,INE528G01035,CNC,0,10515,0,0,10515,0,2025-08-31 00:00:00,10515,0,0,,False,20.085507,19.11,18.69,-10257.456105000003,0.41999999999999815,2.247191011235945,0,0,0,0,0

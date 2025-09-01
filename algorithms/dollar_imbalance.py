@@ -40,15 +40,35 @@ if not logger.handlers:
 class EMADollarImbalanceConfig:
     # tuned defaults for lower-frequency / aggregated inputs (e.g. daily)
     num_prev_bars: int = 3
-    expected_imbalance_span: int = 1000    # shorter span so EWMA adapts quicker
-    exp_num_ticks_init: int = 2000        # smaller initial bar size for sparser data
+    expected_imbalance_span: int = 10    # shorter span so EWMA adapts quicker
+    exp_num_ticks_init: int = 5    # smaller initial bar size for sparser data
     exp_num_ticks_min: int = 1
-    exp_num_ticks_max: float = np.inf
+    # exp_num_ticks_max: float = np.inf
+    exp_num_ticks_max: float = 5
 
 def _ewma_last(values, span: int) -> float:
     if len(values) == 0:
         return float('nan')
     return float(pd.Series(values).ewm(span=span, adjust=False).mean().iloc[-1])
+
+def _detect_data_freq_seconds(dt_index) -> Optional[float]:
+    """
+    Return median seconds between consecutive timestamps in dt_index.
+    Returns None if not enough timestamps or parsing fails.
+    """
+    try:
+        idx = pd.DatetimeIndex(pd.to_datetime(dt_index))
+    except Exception:
+        return None
+    if len(idx) < 2:
+        return None
+    deltas = (idx[1:] - idx[:-1]).total_seconds()
+    # handle possible NaN/inf
+    deltas = np.asarray(deltas, dtype=float)
+    deltas = deltas[np.isfinite(deltas)]
+    if deltas.size == 0:
+        return None
+    return float(np.median(deltas))
 
 class EMADollarImbalanceBars:
     """
@@ -303,9 +323,9 @@ def get_ema_dollar_imbalance_bars(data: Union[str, pd.DataFrame],
 def apply_dollar_imbalance_bars_all_symbols(engineered_dir: str = "./Engineered_data",
                                             results_dir: str = "./results/dollar_imbalance",
                                             num_prev_bars: int = 3,
-                                            expected_imbalance_span: int = 1000,
-                                            exp_num_ticks_init: int = 2000,
-                                            exp_num_ticks_constraints: Tuple[int, float] = (1, np.inf),
+                                            expected_imbalance_span: int = 5,
+                                            exp_num_ticks_init: int = 5,
+                                            exp_num_ticks_constraints: Tuple[int, float] = (1, 5),
                                             aggressive: bool = False):
     """
     Apply DIB to all available symbols.
@@ -392,14 +412,65 @@ def apply_dollar_imbalance_bars_all_symbols(engineered_dir: str = "./Engineered_
             if inferred >= pd.Timedelta(days=1):
                 freq_relaxed = True
 
-        # choose parameters
-        if aggressive:
-            # much smaller span and bar size => more frequent bars
-            use_expected_span = max(2, int(expected_imbalance_span // 10))
-            use_exp_ticks = max(1, int(exp_num_ticks_init // 20))
+        # --- determine data frequency and scale thresholds ---
+        # detect sampling frequency (seconds between rows)
+        med_dt = _detect_data_freq_seconds(tick_df['date_time']) if 'date_time' in tick_df.columns else None
+        # If data is low-frequency (daily), scale thresholds down strongly
+        if med_dt is None:
+            freq_scale = 1.0
+        elif med_dt >= 24*3600 - 1:   # roughly daily
+            freq_scale = 0.01         # shrink thresholds by 100x for daily inputs
+        elif med_dt >= 3600:         # hourly-ish
+            freq_scale = 0.1
         else:
-            use_expected_span = max(5, int(expected_imbalance_span /  (100 if freq_relaxed else 1)))
-            use_exp_ticks = max(1, int(exp_num_ticks_init / (100 if freq_relaxed else 1)))
+            freq_scale = 1.0
+
+        if aggressive:
+            freq_scale *= 0.2
+
+        use_expected_span = max(1, int(max(1, expected_imbalance_span) * freq_scale))
+        use_exp_ticks = max(1, int(max(1, exp_num_ticks_init) * freq_scale))
+
+        logger.debug("[%s] med_dt=%s sec freq_scale=%s E_span=%s exp_ticks=%s",
+                     symbol, getattr(med_dt, "__str__", lambda: med_dt)(), freq_scale, use_expected_span, use_exp_ticks)
+
+        # Initialize estimator E0 (expected imbalance span) per-symbol if missing and keep it numeric
+        if not hasattr(tick_df, "_E0") or tick_df._E0 is None:
+            # use median of volume-weighted dollar ticks over a small window or fallback to use_expected_span
+            try:
+                sample_vals = (tick_df['price'] * tick_df['volume']).abs().values
+                sample_med = float(np.median(sample_vals[sample_vals > 0])) if len(sample_vals) else float(use_expected_span)
+                E0_init = max(1.0, sample_med if np.isfinite(sample_med) else float(use_expected_span))
+            except Exception:
+                E0_init = float(use_expected_span)
+            # store per-symbol E0 on the DataFrame object for subsequent calls
+            tick_df._E0 = float(E0_init)
+
+        # helper inside bar generator: expected_imbalance uses E0 and p_buy
+        def _expected_imbalance(E0, p_buy):
+            base = float(E0) if (E0 and np.isfinite(E0) and E0 > 0) else float(use_expected_span)
+            abs_term = abs(2 * p_buy - 1)
+            if abs_term < 1e-6:
+                return base
+            return base * abs_term
+
+        # Use EWMA updates for E0 and P_buy inside algorithm when a bar completes
+        lam_E0_local = 0.9
+        lam_p_local = 0.9
+
+        # when accumulating ticks, use expected = _expected_imbalance(current_E0, p_buy)
+        current_E0 = float(tick_df._E0)
+        current_pbuy = 0.5
+
+        # then inside your main tick loop (where you previously did expected_imbalance()):
+        # replace calls to expected_imbalance() with:
+        #    threshold = _expected_imbalance(current_E0, current_pbuy)
+        # and when a bar forms, update:
+        #    realized_T = len(current_bar_ticks)  # or realized dollar/volume as appropriate
+        #    current_E0 = (1 - lam_E0_local) * float(realized_T) + lam_E0_local * current_E0
+        #    current_pbuy = (1 - lam_p_local) * p_bar + lam_p_local * current_pbuy
+        #
+        # This keeps thresholds numeric, adaptive, and avoids inf/None values.
 
         bars_df, thr_df = get_ema_dollar_imbalance_bars(
             tick_df,
@@ -428,6 +499,10 @@ def apply_dollar_imbalance_bars_all_symbols(engineered_dir: str = "./Engineered_
             pd.DataFrame(summary).to_csv(out_path, index=False)
             logger.info("[%s] no bars; wrote summary to %s (freq_relaxed=%s, span=%d, exp_T=%d)", symbol, out_path, freq_relaxed, use_expected_span, use_exp_ticks)
         else:
+            df_to_write = bars_df
+            # Add a small diagnostics print after bars are generated for symbol:
+            logger.info("[%s] wrote output to %s  produced_bars=%d  init_E0=%s  final_E0=%s  final_pbuy=%s",
+                        symbol, out_path, len(df_to_write), getattr(tick_df, "_E0", None), current_E0, current_pbuy)
             bars_df.to_csv(out_path, index=False)
             logger.info("[%s] saved %d bars to %s (freq_relaxed=%s, span=%d, exp_T=%d)", symbol, len(bars_df), out_path, freq_relaxed, use_expected_span, use_exp_ticks)
 
@@ -439,8 +514,8 @@ if __name__ == "__main__":
     parser.add_argument("--results", default="./results/dollar_imbalance", help="Folder to save results")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
     parser.add_argument("--num_prev_bars", type=int, default=3)
-    parser.add_argument("--expected_span", type=int, default=1000)
-    parser.add_argument("--exp_ticks", type=int, default=2000)
+    parser.add_argument("--expected_span", type=int, default=50)
+    parser.add_argument("--exp_ticks", type=int, default=20)
     parser.add_argument("--aggressive", action="store_true", help="Use aggressive (lower) thresholds for more frequent bars")
     args = parser.parse_args()
 

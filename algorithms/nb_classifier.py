@@ -79,18 +79,29 @@ def train_naive_bayes(X, y):
     model.fit(X, y)
     return model, np.mean(scores)
 
-def identify_opportunities(model, df, feature_cols):
+def identify_opportunities(model, df, feature_cols, threshold=None):
+    """
+    Compute Opportunity_Prob for the latest row of each symbol.
+    If threshold is provided, return only rows with Opportunity_Prob > threshold.
+    """
     print("Identifying option trading opportunities...")
-    latest = df.sort_values('Date').groupby('symbol').tail(1)
+    latest = df.sort_values('Date').groupby('symbol').tail(1).copy()
     for col in feature_cols:
         if col not in latest.columns:
             latest[col] = np.nan
     X_latest = latest[feature_cols]
-    probs = model.predict_proba(X_latest)[:, 1]
+    try:
+        probs = model.predict_proba(X_latest)[:, 1]
+    except Exception:
+        # cannot predict (NaNs or other issue) -> fill with NaN
+        probs = np.array([np.nan] * len(X_latest))
     latest['Opportunity_Prob'] = probs
-    opportunities = latest[latest['Opportunity_Prob'] > 0.7]
-    print(f"Found {len(opportunities)} opportunities with probability > 0.7.\n")
-    return opportunities[['Date', 'symbol', 'Opportunity_Prob']]
+    if threshold is not None:
+        out = latest[latest['Opportunity_Prob'] > threshold]
+        print(f"Found {len(out)} opportunities with probability > {threshold}.\n")
+        return out[['Date', 'symbol', 'Opportunity_Prob']]
+    print(f"Computed probabilities for {len(latest)} symbols.\n")
+    return latest[['Date', 'symbol', 'Opportunity_Prob']]
 
 def backtest_signals(df, model, feature_cols, threshold=0.7):
     print("\nRunning backtest using vectorbt...")
@@ -202,9 +213,11 @@ else:
 target_periods = [2, 3, 5, 7]
 target_returns = [0.01, 0.015, 0.02]
 bt_scenario = scenario_analysis(df, target_periods, target_returns, symbols, years=5, threshold=0.7)
-os.makedirs("results", exist_ok=True)
-bt_scenario.to_csv("results/nb_classifier_scenario_analysis.csv", index=False)
-
+out_dir = os.path.join("results", "naive_bayes")
+os.makedirs(out_dir, exist_ok=True)
+out_path = os.path.join(out_dir, "nb_classifier_scenario_analysis.csv")
+bt_scenario.to_csv(out_path, index=False)
+print(f"Scenario analysis saved to: {out_path}")
 end_time = time.time()
 print(f"\nScript completed in {int(end_time - start_time)} seconds.")
 
