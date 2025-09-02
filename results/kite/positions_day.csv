@@ -1,0 +1,5 @@
+tradingsymbol,exchange,instrument_token,product,segment,quantity,overnight_quantity,multiplier,average_price,close_price,last_price,value,pnl,m2m,unrealised,realised,buy_quantity,buy_price,buy_value,buy_m2m,sell_quantity,sell_price,sell_value,sell_m2m,day_buy_quantity,day_buy_price,day_buy_value,day_sell_quantity,day_sell_price,day_sell_value
+BANKNIFTY25SEP54300CE,NFO,13986562,NRML,,-35,0,1,683.0,604.25,715.0,23905.0,-1120.0,-1120.0,-1120.0,0,0,0.0,0.0,0.0,35,683.0,23905,23905,0,0.0,0.0,35,683.0,23905
+BEL25SEP385CE,NFO,17610242,NRML,,-2850,0,1,4.7,4.05,5.1,13395.0,-1139.9999999999982,-1139.9999999999982,-1139.9999999999982,0,0,0.0,0.0,0.0,2850,4.7,13395,13395,0,0.0,0.0,2850,4.7,13395
+BEL25SEP400CE,NFO,18629378,NRML,,2850,0,1,1.65,0.0,1.85,-4702.5,570.0,570.0,570.0,0,2850,1.65,4702.5,4702.5,0,0.0,0,0,2850,1.65,4702.5,0,0.0,0
+BEL25SEP370CE,NFO,18626562,NRML,,0,0,1,0.0,9.8,12.25,4560.0,4560.0,4560.0,4560.0,0,2850,9.5,27075.0,27075.0,2850,11.1,31635,31635,2850,9.5,27075.0,2850,11.1,31635
