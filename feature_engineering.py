@@ -391,18 +391,6 @@ def add_features(symbols, interval='1d'):
         except Exception as e:
             print(f"Gaussian Mixture Model failed for {symbol}: {e}")
 
-        # --- Apply CUSUM filter events on Close price ---
-        try:
-            h = data['Close'].std() * 0.25  # You can adjust the threshold as needed
-            data['cusum_event'] = 0
-            if 'Close' in data.columns:
-                data = data.sort_values('Date')
-                data['Date'] = pd.to_datetime(data['Date'])
-                t_events = getTEvents(data.set_index('Date')['Close'], h)
-                data.loc[data['Date'].isin(t_events), 'cusum_event'] = 1
-        except Exception as e:
-            print(f"CUSUM filter failed for {symbol}: {e}")
-
         # Ensure 'Date' is a column, not index
         if 'Date' not in data.columns:
             data.reset_index(inplace=True)
