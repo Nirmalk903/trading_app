@@ -1337,3 +1337,127 @@
 2025-08-31 06:51:24 INFO dollar_imbalance Transform complete: emitted 1417 bars (input rows=2470)
 2025-08-31 06:51:24 INFO dollar_imbalance [AXISBANK] wrote output to ./results/dollar_imbalance\AXISBANK_dollar_imbalance_bars.csv  produced_bars=1417  init_E0=6322326355.120793  final_E0=6322326355.120793  final_pbuy=0.5
 2025-08-31 06:51:24 INFO dollar_imbalance [AXISBANK] saved 1417 bars to ./results/dollar_imbalance\AXISBANK_dollar_imbalance_bars.csv (freq_relaxed=True, span=1, exp_T=1)
+2025-09-05 01:19:56 INFO dollar_imbalance Starting Dollar Imbalance Bars run. engineered_dir=./Engineered_data results_dir=./results/dollar_imbalance
+2025-09-05 01:19:56 INFO dollar_imbalance Found 0 symbols from C:\Users\nirma\OneDrive\MyProjects\trading_app\Underlying_data_kite
+2025-09-05 01:19:56 INFO dollar_imbalance Found 49 symbols from engineered_dir
+2025-09-05 01:19:56 INFO dollar_imbalance Processing symbol ADANIENT
+2025-09-05 01:22:11 INFO dollar_imbalance Running dollar_imbalance as script
+2025-09-05 01:22:11 INFO dollar_imbalance Starting Dollar Imbalance Bars run. engineered_dir=./Engineered_data results_dir=./results/dollar_imbalance
+2025-09-05 01:22:11 INFO dollar_imbalance Found 17 symbols from most-active files
+2025-09-05 01:22:11 INFO dollar_imbalance Processing symbol NIFTY
+2025-09-05 01:22:11 INFO dollar_imbalance Transform start: 2468 rows
+2025-09-05 01:22:16 INFO dollar_imbalance Transform complete: emitted 2335 bars (input rows=2468)
+2025-09-05 01:22:16 INFO dollar_imbalance [NIFTY] wrote output to ./results/dollar_imbalance\NIFTY_dollar_imbalance_bars.csv  produced_bars=2335  init_E0=4615409286.328125  final_E0=4615409286.328125  final_pbuy=0.5
+2025-09-05 01:22:16 INFO dollar_imbalance [NIFTY] saved 2335 bars to ./results/dollar_imbalance\NIFTY_dollar_imbalance_bars.csv (freq_relaxed=True, span=1, exp_T=1)
+2025-09-05 01:22:16 INFO dollar_imbalance Processing symbol BANKNIFTY
+2025-09-05 01:22:16 INFO dollar_imbalance Transform start: 2202 rows
+2025-09-05 01:22:18 INFO dollar_imbalance Transform complete: emitted 282 bars (input rows=2202)
+2025-09-05 01:22:18 INFO dollar_imbalance [BANKNIFTY] wrote output to ./results/dollar_imbalance\BANKNIFTY_dollar_imbalance_bars.csv  produced_bars=282  init_E0=7911547029.1015625  final_E0=7911547029.1015625  final_pbuy=0.5
+2025-09-05 01:22:18 INFO dollar_imbalance [BANKNIFTY] saved 282 bars to ./results/dollar_imbalance\BANKNIFTY_dollar_imbalance_bars.csv (freq_relaxed=True, span=1, exp_T=1)
+2025-09-05 01:22:18 INFO dollar_imbalance Processing symbol M&M
+2025-09-05 01:22:18 INFO dollar_imbalance Transform start: 2475 rows
+2025-09-05 01:22:21 INFO dollar_imbalance Transform complete: emitted 1138 bars (input rows=2475)
+2025-09-05 01:22:21 INFO dollar_imbalance [M&M] wrote output to ./results/dollar_imbalance\M&M_dollar_imbalance_bars.csv  produced_bars=1138  init_E0=2393422698.9330807  final_E0=2393422698.9330807  final_pbuy=0.5
+2025-09-05 01:22:21 INFO dollar_imbalance [M&M] saved 1138 bars to ./results/dollar_imbalance\M&M_dollar_imbalance_bars.csv (freq_relaxed=True, span=1, exp_T=1)
+2025-09-05 01:22:21 INFO dollar_imbalance Processing symbol BAJFINANCE
+2025-09-05 01:22:21 INFO dollar_imbalance Transform start: 2474 rows
+2025-09-05 01:22:25 INFO dollar_imbalance Transform complete: emitted 1180 bars (input rows=2474)
+2025-09-05 01:22:25 INFO dollar_imbalance [BAJFINANCE] wrote output to ./results/dollar_imbalance\BAJFINANCE_dollar_imbalance_bars.csv  produced_bars=1180  init_E0=5229405888.45857  final_E0=5229405888.45857  final_pbuy=0.5
+2025-09-05 01:22:25 INFO dollar_imbalance [BAJFINANCE] saved 1180 bars to ./results/dollar_imbalance\BAJFINANCE_dollar_imbalance_bars.csv (freq_relaxed=True, span=1, exp_T=1)
+2025-09-05 01:22:25 INFO dollar_imbalance Processing symbol HDFCBANK
+2025-09-05 01:22:25 INFO dollar_imbalance Transform start: 2474 rows
+2025-09-05 01:22:28 INFO dollar_imbalance Transform complete: emitted 1051 bars (input rows=2474)
+2025-09-05 01:22:28 INFO dollar_imbalance [HDFCBANK] wrote output to ./results/dollar_imbalance\HDFCBANK_dollar_imbalance_bars.csv  produced_bars=1051  init_E0=8068852250.450081  final_E0=8068852250.450081  final_pbuy=0.5
+2025-09-05 01:22:28 INFO dollar_imbalance [HDFCBANK] saved 1051 bars to ./results/dollar_imbalance\HDFCBANK_dollar_imbalance_bars.csv (freq_relaxed=True, span=1, exp_T=1)
+2025-09-05 01:22:28 INFO dollar_imbalance Processing symbol MARUTI
+2025-09-05 01:22:29 INFO dollar_imbalance Transform start: 2474 rows
+2025-09-05 01:22:32 INFO dollar_imbalance Transform complete: emitted 1791 bars (input rows=2474)
+2025-09-05 01:22:32 INFO dollar_imbalance [MARUTI] wrote output to ./results/dollar_imbalance\MARUTI_dollar_imbalance_bars.csv  produced_bars=1791  init_E0=4372362583.760742  final_E0=4372362583.760742  final_pbuy=0.5
+2025-09-05 01:22:54 INFO dollar_imbalance Running dollar_imbalance as script
+2025-09-05 01:22:54 INFO dollar_imbalance Starting Dollar Imbalance Bars run. engineered_dir=./Engineered_data results_dir=./results/dollar_imbalance
+2025-09-05 01:22:54 INFO dollar_imbalance Found 17 symbols from most-active files
+2025-09-05 01:22:54 INFO dollar_imbalance Processing symbol NIFTY
+2025-09-05 01:22:54 INFO dollar_imbalance Transform start: 2468 rows
+2025-09-05 01:23:02 INFO dollar_imbalance Transform complete: emitted 2335 bars (input rows=2468)
+2025-09-05 01:23:02 INFO dollar_imbalance [NIFTY] wrote output to ./results/dollar_imbalance\NIFTY_dollar_imbalance_bars.csv  produced_bars=2335  init_E0=4615409286.328125  final_E0=4615409286.328125  final_pbuy=0.5
+2025-09-05 01:23:02 INFO dollar_imbalance [NIFTY] saved 2335 bars to ./results/dollar_imbalance\NIFTY_dollar_imbalance_bars.csv (freq_relaxed=True, span=1, exp_T=1)
+2025-09-05 01:23:02 INFO dollar_imbalance Processing symbol BANKNIFTY
+2025-09-05 01:23:02 INFO dollar_imbalance Transform start: 2202 rows
+2025-09-05 01:23:06 INFO dollar_imbalance Transform complete: emitted 282 bars (input rows=2202)
+2025-09-05 01:23:06 INFO dollar_imbalance [BANKNIFTY] wrote output to ./results/dollar_imbalance\BANKNIFTY_dollar_imbalance_bars.csv  produced_bars=282  init_E0=7911547029.1015625  final_E0=7911547029.1015625  final_pbuy=0.5
+2025-09-05 01:23:06 INFO dollar_imbalance [BANKNIFTY] saved 282 bars to ./results/dollar_imbalance\BANKNIFTY_dollar_imbalance_bars.csv (freq_relaxed=True, span=1, exp_T=1)
+2025-09-05 01:23:06 INFO dollar_imbalance Processing symbol M&M
+2025-09-05 01:23:07 INFO dollar_imbalance Transform start: 2475 rows
+2025-09-05 01:23:11 INFO dollar_imbalance Transform complete: emitted 1138 bars (input rows=2475)
+2025-09-05 01:23:11 INFO dollar_imbalance [M&M] wrote output to ./results/dollar_imbalance\M&M_dollar_imbalance_bars.csv  produced_bars=1138  init_E0=2393422698.9330807  final_E0=2393422698.9330807  final_pbuy=0.5
+2025-09-05 01:23:11 INFO dollar_imbalance [M&M] saved 1138 bars to ./results/dollar_imbalance\M&M_dollar_imbalance_bars.csv (freq_relaxed=True, span=1, exp_T=1)
+2025-09-05 01:23:11 INFO dollar_imbalance Processing symbol BAJFINANCE
+2025-09-05 01:23:12 INFO dollar_imbalance Transform start: 2474 rows
+2025-09-05 01:23:17 INFO dollar_imbalance Transform complete: emitted 1180 bars (input rows=2474)
+2025-09-05 01:23:17 INFO dollar_imbalance [BAJFINANCE] wrote output to ./results/dollar_imbalance\BAJFINANCE_dollar_imbalance_bars.csv  produced_bars=1180  init_E0=5229405888.45857  final_E0=5229405888.45857  final_pbuy=0.5
+2025-09-05 01:23:17 INFO dollar_imbalance [BAJFINANCE] saved 1180 bars to ./results/dollar_imbalance\BAJFINANCE_dollar_imbalance_bars.csv (freq_relaxed=True, span=1, exp_T=1)
+2025-09-05 01:23:17 INFO dollar_imbalance Processing symbol HDFCBANK
+2025-09-05 01:23:17 INFO dollar_imbalance Transform start: 2474 rows
+2025-09-05 01:23:22 INFO dollar_imbalance Transform complete: emitted 1051 bars (input rows=2474)
+2025-09-05 01:23:22 INFO dollar_imbalance [HDFCBANK] wrote output to ./results/dollar_imbalance\HDFCBANK_dollar_imbalance_bars.csv  produced_bars=1051  init_E0=8068852250.450081  final_E0=8068852250.450081  final_pbuy=0.5
+2025-09-05 01:23:22 INFO dollar_imbalance [HDFCBANK] saved 1051 bars to ./results/dollar_imbalance\HDFCBANK_dollar_imbalance_bars.csv (freq_relaxed=True, span=1, exp_T=1)
+2025-09-05 01:23:22 INFO dollar_imbalance Processing symbol MARUTI
+2025-09-05 01:23:23 INFO dollar_imbalance Transform start: 2474 rows
+2025-09-05 01:23:29 INFO dollar_imbalance Transform complete: emitted 1791 bars (input rows=2474)
+2025-09-05 01:23:29 INFO dollar_imbalance [MARUTI] wrote output to ./results/dollar_imbalance\MARUTI_dollar_imbalance_bars.csv  produced_bars=1791  init_E0=4372362583.760742  final_E0=4372362583.760742  final_pbuy=0.5
+2025-09-05 01:23:29 INFO dollar_imbalance [MARUTI] saved 1791 bars to ./results/dollar_imbalance\MARUTI_dollar_imbalance_bars.csv (freq_relaxed=True, span=1, exp_T=1)
+2025-09-05 01:23:29 INFO dollar_imbalance Processing symbol ICICIBANK
+2025-09-05 01:23:29 INFO dollar_imbalance Transform start: 2474 rows
+2025-09-05 01:23:35 INFO dollar_imbalance Transform complete: emitted 1424 bars (input rows=2474)
+2025-09-05 01:23:35 INFO dollar_imbalance [ICICIBANK] wrote output to ./results/dollar_imbalance\ICICIBANK_dollar_imbalance_bars.csv  produced_bars=1424  init_E0=8507387355.885499  final_E0=8507387355.885499  final_pbuy=0.5
+2025-09-05 01:23:35 INFO dollar_imbalance [ICICIBANK] saved 1424 bars to ./results/dollar_imbalance\ICICIBANK_dollar_imbalance_bars.csv (freq_relaxed=True, span=1, exp_T=1)
+2025-09-05 01:23:35 INFO dollar_imbalance Processing symbol RELIANCE
+2025-09-05 01:23:35 INFO dollar_imbalance Transform start: 2474 rows
+2025-09-05 01:23:42 INFO dollar_imbalance Transform complete: emitted 1251 bars (input rows=2474)
+2025-09-05 01:23:42 INFO dollar_imbalance [RELIANCE] wrote output to ./results/dollar_imbalance\RELIANCE_dollar_imbalance_bars.csv  produced_bars=1251  init_E0=11490012186.5625  final_E0=11490012186.5625  final_pbuy=0.5
+2025-09-05 01:23:42 INFO dollar_imbalance [RELIANCE] saved 1251 bars to ./results/dollar_imbalance\RELIANCE_dollar_imbalance_bars.csv (freq_relaxed=True, span=1, exp_T=1)
+2025-09-05 01:23:42 INFO dollar_imbalance Processing symbol HDFCLIFE
+2025-09-05 01:23:42 INFO dollar_imbalance Transform start: 1927 rows
+2025-09-05 01:23:44 INFO dollar_imbalance Transform complete: emitted 278 bars (input rows=1927)
+2025-09-05 01:23:44 INFO dollar_imbalance [HDFCLIFE] wrote output to ./results/dollar_imbalance\HDFCLIFE_dollar_imbalance_bars.csv  produced_bars=278  init_E0=1591226559.1627824  final_E0=1591226559.1627824  final_pbuy=0.5
+2025-09-05 01:23:44 INFO dollar_imbalance [HDFCLIFE] saved 278 bars to ./results/dollar_imbalance\HDFCLIFE_dollar_imbalance_bars.csv (freq_relaxed=True, span=1, exp_T=1)
+2025-09-05 01:23:44 INFO dollar_imbalance Processing symbol HINDUNILVR
+2025-09-05 01:23:45 INFO dollar_imbalance Transform start: 2474 rows
+2025-09-05 01:23:48 INFO dollar_imbalance Transform complete: emitted 590 bars (input rows=2474)
+2025-09-05 01:23:48 INFO dollar_imbalance [HINDUNILVR] wrote output to ./results/dollar_imbalance\HINDUNILVR_dollar_imbalance_bars.csv  produced_bars=590  init_E0=2625667529.6508183  final_E0=2625667529.6508183  final_pbuy=0.5
+2025-09-05 01:23:48 INFO dollar_imbalance [HINDUNILVR] saved 590 bars to ./results/dollar_imbalance\HINDUNILVR_dollar_imbalance_bars.csv (freq_relaxed=True, span=1, exp_T=1)
+2025-09-05 01:23:48 INFO dollar_imbalance Processing symbol ETERNAL
+2025-09-05 01:23:49 INFO dollar_imbalance Transform start: 103 rows
+2025-09-05 01:23:49 INFO dollar_imbalance Transform complete: emitted 19 bars (input rows=103)
+2025-09-05 01:23:49 INFO dollar_imbalance [ETERNAL] wrote output to ./results/dollar_imbalance\ETERNAL_dollar_imbalance_bars.csv  produced_bars=19  init_E0=9373980230.673296  final_E0=9373980230.673296  final_pbuy=0.5
+2025-09-05 01:23:49 INFO dollar_imbalance [ETERNAL] saved 19 bars to ./results/dollar_imbalance\ETERNAL_dollar_imbalance_bars.csv (freq_relaxed=True, span=1, exp_T=1)
+2025-09-05 01:23:49 INFO dollar_imbalance Processing symbol ITC
+2025-09-05 01:23:49 INFO dollar_imbalance Transform start: 2472 rows
+2025-09-05 01:23:53 INFO dollar_imbalance Transform complete: emitted 1200 bars (input rows=2472)
+2025-09-05 01:23:53 INFO dollar_imbalance [ITC] wrote output to ./results/dollar_imbalance\ITC_dollar_imbalance_bars.csv  produced_bars=1200  init_E0=3019385479.2914915  final_E0=3019385479.2914915  final_pbuy=0.5
+2025-09-05 01:23:54 INFO dollar_imbalance [ITC] saved 1200 bars to ./results/dollar_imbalance\ITC_dollar_imbalance_bars.csv (freq_relaxed=True, span=1, exp_T=1)
+2025-09-05 01:23:54 INFO dollar_imbalance Processing symbol TATAMOTORS
+2025-09-05 01:23:54 INFO dollar_imbalance Transform start: 2474 rows
+2025-09-05 01:23:58 INFO dollar_imbalance Transform complete: emitted 1231 bars (input rows=2474)
+2025-09-05 01:23:58 INFO dollar_imbalance [TATAMOTORS] wrote output to ./results/dollar_imbalance\TATAMOTORS_dollar_imbalance_bars.csv  produced_bars=1231  init_E0=5346183104.113368  final_E0=5346183104.113368  final_pbuy=0.5
+2025-09-05 01:23:58 INFO dollar_imbalance [TATAMOTORS] saved 1231 bars to ./results/dollar_imbalance\TATAMOTORS_dollar_imbalance_bars.csv (freq_relaxed=True, span=1, exp_T=1)
+2025-09-05 01:23:58 INFO dollar_imbalance Processing symbol HEROMOTOCO
+2025-09-05 01:23:58 INFO dollar_imbalance Transform start: 2471 rows
+2025-09-05 01:24:02 INFO dollar_imbalance Transform complete: emitted 974 bars (input rows=2471)
+2025-09-05 01:24:02 INFO dollar_imbalance [HEROMOTOCO] wrote output to ./results/dollar_imbalance\HEROMOTOCO_dollar_imbalance_bars.csv  produced_bars=974  init_E0=1439360359.6723487  final_E0=1439360359.6723487  final_pbuy=0.5
+2025-09-05 01:24:02 INFO dollar_imbalance [HEROMOTOCO] saved 974 bars to ./results/dollar_imbalance\HEROMOTOCO_dollar_imbalance_bars.csv (freq_relaxed=True, span=1, exp_T=1)
+2025-09-05 01:24:02 INFO dollar_imbalance Processing symbol EICHERMOT
+2025-09-05 01:24:02 INFO dollar_imbalance Transform start: 2468 rows
+2025-09-05 01:24:06 INFO dollar_imbalance Transform complete: emitted 1047 bars (input rows=2468)
+2025-09-05 01:24:06 INFO dollar_imbalance [EICHERMOT] wrote output to ./results/dollar_imbalance\EICHERMOT_dollar_imbalance_bars.csv  produced_bars=1047  init_E0=1752773585.9409266  final_E0=1752773585.9409266  final_pbuy=0.5
+2025-09-05 01:24:06 INFO dollar_imbalance [EICHERMOT] saved 1047 bars to ./results/dollar_imbalance\EICHERMOT_dollar_imbalance_bars.csv (freq_relaxed=True, span=1, exp_T=1)
+2025-09-05 01:24:06 INFO dollar_imbalance Processing symbol TRENT
+2025-09-05 01:24:07 INFO dollar_imbalance Transform start: 2472 rows
+2025-09-05 01:24:10 INFO dollar_imbalance Transform complete: emitted 473 bars (input rows=2472)
+2025-09-05 01:24:10 INFO dollar_imbalance [TRENT] wrote output to ./results/dollar_imbalance\TRENT_dollar_imbalance_bars.csv  produced_bars=473  init_E0=316280751.7553362  final_E0=316280751.7553362  final_pbuy=0.5
+2025-09-05 01:24:10 INFO dollar_imbalance [TRENT] saved 473 bars to ./results/dollar_imbalance\TRENT_dollar_imbalance_bars.csv (freq_relaxed=True, span=1, exp_T=1)
+2025-09-05 01:24:10 INFO dollar_imbalance Processing symbol INFY
+2025-09-05 01:24:10 INFO dollar_imbalance Transform start: 2474 rows
+2025-09-05 01:24:15 INFO dollar_imbalance Transform complete: emitted 1407 bars (input rows=2474)
+2025-09-05 01:24:15 INFO dollar_imbalance [INFY] wrote output to ./results/dollar_imbalance\INFY_dollar_imbalance_bars.csv  produced_bars=1407  init_E0=6137062066.723987  final_E0=6137062066.723987  final_pbuy=0.5
+2025-09-05 01:24:15 INFO dollar_imbalance [INFY] saved 1407 bars to ./results/dollar_imbalance\INFY_dollar_imbalance_bars.csv (freq_relaxed=True, span=1, exp_T=1)
