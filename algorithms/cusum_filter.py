@@ -1,32 +1,43 @@
 """
-Robust CUSUM utilities and plotting for dollar-imbalance (or Close) series.
+Robust CUSUM utilities and plotting for engineered Close series.
 
-- Prefer dollar-imbalance files produced by algorithms/results.
-- Fallback to engineered files if needed.
-- Defensive I/O, clear logging, CLI entrypoint.
+- Reads engineered files only (Close price).
+- Defensive I/O and logging.
+- CLI entrypoint to produce per-symbol CSVs and a combined PDF of charts.
 """
 from __future__ import annotations
 
 import os
 import sys
 from pathlib import Path
-from typing import Iterable, Optional, Tuple
+from typing import Iterable, Optional, Tuple, List
 
 import logging
-import json
+import math
 
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_pdf import PdfPages
+
+# matplotlib: prefer non-interactive backend when DISPLAY not available
+try:
+    import matplotlib
+
+    if not os.environ.get("DISPLAY"):
+        matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.backends.backend_pdf import PdfPages
+except Exception:
+    plt = None
+    PdfPages = None
 
 # make project root import-friendly
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))
 
+# optional helpers (best-effort import)
 try:
-    from data_download_vbt import get_symbols, get_dates_from_most_active_files  # optional helper
+    from data_download_vbt import get_symbols, get_dates_from_most_active_files  # type: ignore
 except Exception:
     get_symbols = None
     get_dates_from_most_active_files = None
@@ -41,15 +52,18 @@ if not logger.handlers:
 logger.setLevel(logging.INFO)
 
 
-def getTEvents(gRaw: pd.Series, h: float) -> Tuple[pd.DatetimeIndex, pd.DataFrame]:
+def getTEvents(g_raw: pd.Series, h: float) -> Tuple[pd.DatetimeIndex, pd.DataFrame]:
     """Compute CUSUM trigger event timestamps and diagnostic dataframe.
 
-    Returns (tEvents, diag_df) where diag_df indexed by diff timestamps and columns sPos,sNeg,trigger.
+    Returns (tEvents, diag_df) where diag_df indexed by diff timestamps with columns sPos,sNeg,trigger.
     """
-    g = pd.Series(gRaw).astype(float).copy()
+    if g_raw is None or len(g_raw) == 0:
+        return pd.DatetimeIndex([]), pd.DataFrame(columns=["sPos", "sNeg", "trigger"])
+
+    g = pd.Series(g_raw).astype(float).copy()
     diff = g.diff().fillna(0.0)
 
-    t_events = []
+    t_events: List[pd.Timestamp] = []
     sPos, sNeg = 0.0, 0.0
     rows = []
 
@@ -78,20 +92,16 @@ def find_dollar_imbalance_file(symbol: str,
                                engineered_dir: str,
                                results_dir: str,
                                underlying_dir: Optional[str] = None) -> Optional[str]:
-    """Return first existing candidate file path for symbol (prefer results dollar-imbalance outputs)."""
-    candidates = []
-    results_dir = str(results_dir)
+    """
+    Restrict input discovery to engineered data only (Close price).
+    Do NOT prefer or return dollar-imbalance files.
+    """
     engineered_dir = str(engineered_dir)
-    if underlying_dir:
-        candidates.append(os.path.join(underlying_dir, f"{symbol}_1d.csv"))
-        candidates.append(os.path.join(underlying_dir, f"{symbol}.csv"))
-    candidates.extend([
-        os.path.join(results_dir, f"{symbol}_dollar_imbalance_bars.csv"),
-        os.path.join(results_dir, "dollar_imbalance", f"{symbol}_dollar_imbalance_bars.csv"),
+    candidates = [
         os.path.join(engineered_dir, f"{symbol}_1d_features.json"),
         os.path.join(engineered_dir, f"{symbol}_1d_features.csv"),
         os.path.join(engineered_dir, f"{symbol}.csv"),
-    ])
+    ]
     for p in candidates:
         try:
             if p and os.path.exists(p):
@@ -102,7 +112,10 @@ def find_dollar_imbalance_file(symbol: str,
 
 
 def read_series_from_file(file_path: str) -> Tuple[Optional[pd.Series], Optional[str]]:
-    """Read a series from a dollar-imbalance or engineered file; return (series, label) or (None, None)."""
+    """
+    Read engineered file and return Close series only.
+    Returns (series, "Close") or (None, None) if file is invalid / missing Close.
+    """
     try:
         if file_path.lower().endswith(".json"):
             df = pd.read_json(file_path, orient="records", lines=True)
@@ -112,37 +125,26 @@ def read_series_from_file(file_path: str) -> Tuple[Optional[pd.Series], Optional
         logger.warning("Failed reading %s: %s", file_path, e)
         return None, None
 
-    # Possible schemas:
-    # - dollar imbalance: date_time, signed_dollar_imbalance
-    # - engineered: Date/Close or date_time/Close
-    df_cols = set(df.columns.str.lower())
-    # normalize column names
-    colmap = {c: c for c in df.columns}
-    if "date" in df.columns and "date_time" not in df.columns:
-        df = df.rename(columns={"Date": "date_time"}) if "Date" in df.columns else df
-    if "close" in df.columns and "Close" not in df.columns:
-        # nothing
-        pass
+    # normalize date column
+    if "date_time" not in df.columns and "Date" in df.columns:
+        df = df.rename(columns={"Date": "date_time"})
 
-    # prefer signed_dollar_imbalance
-    if "signed_dollar_imbalance" in df.columns:
-        dt_col = "date_time" if "date_time" in df.columns else ("Date" if "Date" in df.columns else None)
-        if not dt_col:
-            return None, None
-        ser = pd.Series(df["signed_dollar_imbalance"].values, index=pd.to_datetime(df[dt_col], errors="coerce"))
-        return ser[~ser.index.duplicated(keep="first")].dropna(), "Signed Dollar Imbalance"
+    # require Close (case sensitive as produced) or fallback to lowercase 'close'
+    if "Close" in df.columns:
+        val_col = "Close"
+    elif "close" in df.columns:
+        val_col = "close"
+    else:
+        logger.debug("Engineered file %s missing Close column", file_path)
+        return None, None
 
-    # fallback to Close/close
-    if "Close" in df.columns or "close" in df.columns:
-        # determine dt column
-        dt_col = "date_time" if "date_time" in df.columns else ("Date" if "Date" in df.columns else None)
-        val_col = "Close" if "Close" in df.columns else "close"
-        if not dt_col:
-            return None, None
-        ser = pd.Series(df[val_col].values, index=pd.to_datetime(df[dt_col], errors="coerce"))
-        return ser[~ser.index.duplicated(keep="first")].dropna(), "Close"
+    if "date_time" not in df.columns:
+        logger.debug("Engineered file %s missing date_time/Date column", file_path)
+        return None, None
 
-    return None, None
+    ser = pd.Series(df[val_col].values, index=pd.to_datetime(df["date_time"], errors="coerce"))
+    ser = ser[~ser.index.duplicated(keep="first")].dropna()
+    return (ser, "Close") if not ser.empty else (None, None)
 
 
 def _ensure_dir(d: str) -> None:
