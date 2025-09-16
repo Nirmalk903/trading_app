@@ -1,357 +1,320 @@
 """
-Fetch monthly option chains (JSON/CSV) using KiteConnect.
-- Picks underlyings from get_symbols() (most-active) or CLI --underlying
-- Groups option instruments by expiry (MONYYYY) and strikes
-- Prompts user to select expiry (or use --expiry / --all)
-- Saves results under results/kite/OptionChainJSON/<UNDERLYING>/<EXPIRY>/
+Download option chains from Kite and save per-symbol JSON files under
+trading_app/OptionChainJSON_Kite.
+
+Features / robustness improvements:
+- Defensive imports and clear error messages if kiteconnect missing.
+- Safe path handling and directory creation.
+- Retries for network calls with backoff.
+- Chunked LTP requests to avoid oversized calls.
+- Prefer symbols from data_download_vbt.get_symbols, fallback to scanning folders.
+- Select expiry: last Tuesday of current month (fallback to same month expiry).
+- Clear logging and CLI.
 """
+from __future__ import annotations
+
 import os
 import sys
 import json
-import re
 import time
-import glob
-import logging
 import calendar
-from typing import Dict, List, Optional
-from datetime import datetime, timezone
-from dotenv import load_dotenv
+import logging
+from pathlib import Path
+from typing import List, Dict, Optional, Any
+from datetime import datetime, timezone, timedelta
 
-import pandas as pd
+# Configure logger (simple, safe to reuse)
+logger = logging.getLogger("optionchain_kite")
+if not logger.handlers:
+    ch = logging.StreamHandler(sys.stdout)
+    ch.setFormatter(logging.Formatter("%(asctime)s %(levelname)s: %(message)s", "%Y-%m-%d %H:%M:%S"))
+    logger.addHandler(ch)
+logger.setLevel(logging.INFO)
 
-# allow local imports
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from data_download_kite import _build_instrument_map_from_kite  # noqa: E402
-from data_download_vbt import get_symbols, get_dates_from_most_active_files  # noqa: E402
+# Optional helper imports (best-effort)
+try:
+    from kiteconnect import KiteConnect  # type: ignore
+except Exception:
+    KiteConnect = None  # type: ignore
 
-load_dotenv()
-logger = logging.getLogger("optionchain")
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s:%(name)s: %(message)s")
+try:
+    from data_download_vbt import get_symbols, get_dates_from_most_active_files  # type: ignore
+except Exception:
+    get_symbols = None
+    get_dates_from_most_active_files = None
 
-MONTHS = {m[:3].upper(): i for i, m in enumerate(calendar.month_name) if m}  # {'JAN':1, ...}
+
+# ----------------------
+# Utilities
+# ----------------------
+def last_weekday_of_month(year: int, month: int, weekday: int) -> datetime:
+    """Return UTC datetime of the last given weekday (0=Mon..6=Sun) for the month."""
+    last_day = calendar.monthrange(year, month)[1]
+    dt = datetime(year, month, last_day, tzinfo=timezone.utc)
+    while dt.weekday() != weekday:
+        dt -= timedelta(days=1)
+    return dt
 
 
-def _extract_expiry_key_from_symbol(ts: str) -> Optional[str]:
-    """Return expiry as MONYYYY (e.g. SEP2025) from a tradingsymbol, or None."""
-    if not ts:
-        return None
-    s = str(ts).upper().replace(".", " ").replace("-", " ")
-    m = re.search(r"\b(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s*(\d{2,4})\b", s)
-    if not m:
-        return None
-    mon, yr = m.group(1), m.group(2)
+def safe_mkdir(p: Path) -> Path:
     try:
-        y = int(yr)
-        if y < 100:
-            y += 2000
-        return f"{mon}{y}"
-    except Exception:
-        return None
+        p.mkdir(parents=True, exist_ok=True)
+    except Exception as e:
+        logger.warning("Could not create directory %s: %s", p, e)
+    return p
 
 
-def _group_option_tokens_by_expiry(inst_map: Dict[str, int], underlying: str) -> Dict[str, Dict[int, Dict]]:
-    """
-    Group option tokens by expiry:
-      { expiry_key (MONYYYY) : { strike : {CE, PE, symbol_ce, symbol_pe} } }
-    """
-    out: Dict[str, Dict[int, Dict]] = {}
-    ux = str(underlying).upper()
-    pat = re.compile(r"(\d+)\s*(CE|PE)$", re.IGNORECASE)
-    for ts, tok in inst_map.items():
+def discover_symbols(top_n: int = 50) -> List[str]:
+    """Try get_symbols() helper, else scan Underlying_data_kite/Engineered_data for files."""
+    syms: List[str] = []
+    if get_symbols and get_dates_from_most_active_files:
         try:
-            tss = str(ts).upper()
+            dates = get_dates_from_most_active_files()
+            if dates:
+                syms, _ = get_symbols(dates[-1], top_n=top_n)
+                if syms:
+                    return [s.upper() for s in syms]
+        except Exception:
+            logger.debug("get_symbols() helper failed", exc_info=True)
+    # fallback scanning folders
+    root = Path(__file__).resolve().parents[1]
+    candidates = [root / "Underlying_data_kite", root / "Engineered_data"]
+    names = set()
+    for d in candidates:
+        try:
+            if d.exists() and d.is_dir():
+                for f in d.iterdir():
+                    if f.suffix.lower() in {".csv", ".json"}:
+                        base = f.stem
+                        sym = base.split("_")[0] if "_" in base else base
+                        names.add(sym.upper())
         except Exception:
             continue
-        if ux not in tss:
+    return sorted(names)
+
+
+# ----------------------
+# Kite / instrument helpers
+# ----------------------
+def instruments_nfo(kite: Any) -> List[Dict[str, Any]]:
+    """Fetch instruments('NFO') with retries."""
+    attempts = 3
+    for i in range(attempts):
+        try:
+            return kite.instruments("NFO")
+        except Exception as e:
+            logger.warning("instruments('NFO') failed (attempt %d/%d): %s", i + 1, attempts, e)
+            time.sleep(0.5 * (i + 1))
+    return []
+
+
+def group_option_chain_by_expiry(instruments: List[Dict[str, Any]], underlying: str) -> Dict[str, Dict[int, Dict[str, Any]]]:
+    """
+    Group option instruments by expiry (ISO date string) then by strike:
+      { 'YYYY-MM-DD': { strike: { 'CE': {...}, 'PE': {...} } } }
+    Only includes instruments whose 'name' matches underlying (case-insensitive).
+    """
+    out: Dict[str, Dict[int, Dict[str, Any]]] = {}
+    ux = (underlying or "").upper()
+    for inst in instruments:
+        try:
+            if (inst.get("instrument_type") or "").upper() != "OPT":
+                continue
+            name = (inst.get("name") or "").upper()
+            if name != ux:
+                continue
+            expiry = inst.get("expiry")
+            if not expiry:
+                continue
+            strike = int(float(inst.get("strike", 0)))
+            opt_type = (inst.get("option_type") or "").upper()
+            if expiry not in out:
+                out[expiry] = {}
+            if strike not in out[expiry]:
+                out[expiry][strike] = {}
+            out[expiry][strike][opt_type] = {
+                "instrument_token": inst.get("instrument_token"),
+                "tradingsymbol": inst.get("tradingsymbol"),
+                "expiry": expiry,
+                "strike": strike,
+                "option_type": opt_type,
+            }
+        except Exception:
             continue
-        expiry = _extract_expiry_key_from_symbol(tss) or "UNKNOWN"
-        m = pat.search(tss.replace(" ", ""))
-        if not m:
-            continue
-        strike = int(m.group(1))
-        side = m.group(2).upper()
-        exp_map = out.setdefault(expiry, {})
-        rec = exp_map.setdefault(strike, {"CE": None, "PE": None, "symbol_ce": None, "symbol_pe": None})
-        if side == "CE":
-            rec["CE"] = int(tok) if isinstance(tok, (int, str)) and str(tok).isdigit() else tok
-            rec["symbol_ce"] = tss
-        else:
-            rec["PE"] = int(tok) if isinstance(tok, (int, str)) and str(tok).isdigit() else tok
-            rec["symbol_pe"] = tss
     return out
 
 
-def _map_ltp_by_token(kite, tokens: List[int]) -> Dict[int, Dict]:
-    """Fetch kite.ltp for tokens and return mapping token -> quote dict."""
-    out: Dict[int, Dict] = {}
+def chunks(lst: List[Any], n: int):
+    for i in range(0, len(lst), n):
+        yield lst[i : i + n]
+
+
+def fetch_ltp_map(kite: Any, tokens: List[int], chunk_size: int = 100, pause: float = 0.2) -> Dict[int, Dict[str, Any]]:
+    """Fetch LTP/oi/volume for tokens in batches. Returns map token->info."""
+    out: Dict[int, Dict[str, Any]] = {}
     if not tokens:
         return out
-    try:
-        resp = kite.ltp(tokens)
-    except Exception:
-        resp = {}
-        for t in tokens:
+    for batch in chunks(tokens, chunk_size):
+        attempts = 2
+        for attempt in range(attempts):
             try:
-                single = kite.ltp(t)
-                if isinstance(single, dict):
-                    resp.update(single)
-            except Exception:
-                continue
-
-    for inst_key, val in (resp or {}).items():
-        if not isinstance(val, dict):
-            continue
-        tok = val.get("instrument_token")
-        if tok is None:
-            m = re.search(r"(\d+)$", str(inst_key))
-            if m:
-                try:
-                    tok = int(m.group(1))
-                except Exception:
-                    tok = None
-        if tok is not None:
-            try:
-                out[int(tok)] = val
-            except Exception:
-                continue
+                resp = kite.ltp(batch)
+                for k, v in resp.items():
+                    try:
+                        tok = int(str(k).split(":")[-1])
+                    except Exception:
+                        continue
+                    out[tok] = {
+                        "last_price": v.get("last_price"),
+                        "oi": v.get("oi"),
+                        "volume": v.get("volume"),
+                        "depth": v.get("depth"),
+                    }
+                break
+            except Exception as e:
+                logger.debug("ltp() failed for batch (attempt %d/%d): %s", attempt + 1, attempts, e)
+                time.sleep(0.25 * (attempt + 1))
+        time.sleep(pause)
     return out
 
 
-def save_chain(out_dir: str, underlying: str, expiry_key: str, chain: Dict[int, Dict], ltp_map: Dict[int, Dict]) -> None:
-    """Save option chain as JSON and CSV under out_dir."""
-    os.makedirs(out_dir, exist_ok=True)
+# ----------------------
+# Output
+# ----------------------
+def save_option_chain_json(out_dir: Path, underlying: str, expiry: str, chain: Dict[int, Dict[str, Any]], ltp_map: Dict[int, Dict[str, Any]]):
+    out_dir = safe_mkdir(out_dir)
     rows = []
     for strike in sorted(chain.keys()):
         rec = chain[strike]
-        ce_tok = rec.get("CE")
-        pe_tok = rec.get("PE")
-        ce_data = ltp_map.get(ce_tok) if ce_tok else None
-        pe_data = ltp_map.get(pe_tok) if pe_tok else None
-
+        ce = rec.get("CE")
+        pe = rec.get("PE")
+        ce_tok = int(ce["instrument_token"]) if ce and ce.get("instrument_token") else None
+        pe_tok = int(pe["instrument_token"]) if pe and pe.get("instrument_token") else None
         rows.append({
             "strike": strike,
-            "symbol_ce": rec.get("symbol_ce"),
-            "ce_token": ce_tok,
-            "ce_ltp": (ce_data.get("last_price") if ce_data else None),
-            "ce_oi": (ce_data.get("oi") if ce_data else None),
-            "ce_volume": (ce_data.get("volume") if ce_data else None),
-            "symbol_pe": rec.get("symbol_pe"),
-            "pe_token": pe_tok,
-            "pe_ltp": (pe_data.get("last_price") if pe_data else None),
-            "pe_oi": (pe_data.get("oi") if pe_data else None),
-            "pe_volume": (pe_data.get("volume") if pe_data else None),
+            "ce": {
+                "tradingsymbol": ce.get("tradingsymbol") if ce else None,
+                "token": ce_tok,
+                "ltp": ltp_map.get(ce_tok, {}).get("last_price") if ce_tok else None,
+                "oi": ltp_map.get(ce_tok, {}).get("oi") if ce_tok else None,
+                "volume": ltp_map.get(ce_tok, {}).get("volume") if ce_tok else None,
+            },
+            "pe": {
+                "tradingsymbol": pe.get("tradingsymbol") if pe else None,
+                "token": pe_tok,
+                "ltp": ltp_map.get(pe_tok, {}).get("last_price") if pe_tok else None,
+                "oi": ltp_map.get(pe_tok, {}).get("oi") if pe_tok else None,
+                "volume": ltp_map.get(pe_tok, {}).get("volume") if pe_tok else None,
+            }
         })
-
-    json_path = os.path.join(out_dir, f"{underlying}_{expiry_key}_OptionChain.json")
-    csv_path = os.path.join(out_dir, f"{underlying}_{expiry_key}_OptionChain.csv")
-    with open(json_path, "w", encoding="utf8") as f:
-        json.dump({"underlying": underlying, "expiry": expiry_key, "rows": rows}, f, indent=2)
-    pd.DataFrame(rows).to_csv(csv_path, index=False)
-    logger.info("Saved option chain files: %s / %s", json_path, csv_path)
-
-
-def _determine_symbol_date_from_most_active() -> datetime:
-    """Return latest timestamp (tz-aware UTC) from MOST-ACTIVE*UNDERLYING files, or fallback to get_dates_from_most_active_files()/now."""
-    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-    pattern = os.path.join(repo_root, "**", "*MOST-ACTIVE*UNDERLYING*.csv")
-    matches = glob.glob(pattern, recursive=True)
-    if matches:
-        dirs: Dict[str, List[str]] = {}
-        for f in matches:
-            d = os.path.dirname(f)
-            dirs.setdefault(d, []).append(f)
-        best_dir, files = max(dirs.items(), key=lambda kv: len(kv[1]))
-        latest_file = max(files, key=os.path.getmtime)
-        return datetime.fromtimestamp(os.path.getmtime(latest_file), timezone.utc)
+    payload = {
+        "underlying": underlying,
+        "expiry": expiry,
+        "fetched_at_utc": datetime.now(timezone.utc).isoformat(),
+        "rows": rows,
+    }
+    fname = f"{underlying}_{expiry}_OptionChain.json".replace(":", "-")
+    out_path = out_dir / fname
     try:
-        dates = get_dates_from_most_active_files() or []
-        if dates:
-            return dates[-1].astimezone(timezone.utc) if hasattr(dates[-1], "tzinfo") else dates[-1].replace(tzinfo=timezone.utc)
-    except Exception:
-        pass
-    return datetime.now(timezone.utc)
-
-
-def _prompt_select_expiry(expiry_keys: List[str], default: Optional[str] = None) -> Optional[str]:
-    """Prompt user to pick one expiry from expiry_keys, or 'ALL', or skip."""
-    if not expiry_keys:
-        return None
-    keys = sorted([k for k in expiry_keys if k != "UNKNOWN"]) + (["UNKNOWN"] if "UNKNOWN" in expiry_keys else [])
-    print("\nAvailable expiries:")
-    for i, k in enumerate(keys):
-        default_mark = " (default)" if default and k == default else ""
-        print(f"  {i:2d}) {k}{default_mark}")
-    print("  a) ALL expiries")
-    print("  s) SKIP this underlying")
-    while True:
-        sel = input(f"Select expiry index [default '{default}'] (index / a / s): ").strip()
-        if sel == "" and default:
-            return default
-        if sel.lower() in ("a", "all"):
-            return "ALL"
-        if sel.lower() in ("s", "skip"):
-            return None
-        try:
-            idx = int(sel)
-            if 0 <= idx < len(keys):
-                return keys[idx]
-        except Exception:
-            pass
-        print("Invalid selection; try again.")
-
-
-def _select_month_end_expiry(candidate_exps: List[str]) -> Optional[str]:
-    """Automatically pick the earliest expiry whose month-end is >= now (UTC).
-    candidate_exps are keys like MONYYYY (e.g. SEP2025). Returns chosen key or None.
-    """
-    if not candidate_exps:
-        return None
-    now = datetime.now(timezone.utc)
-    months = {}
-    for ek in candidate_exps:
-        if ek == "UNKNOWN":
-            continue
-        try:
-            mon = ek[:3]
-            yr = int(ek[3:])
-            mnum = MONTHS.get(mon, 0)
-            if mnum <= 0:
-                continue
-            last_day = calendar.monthrange(yr, mnum)[1]
-            expiry_dt = datetime(yr, mnum, last_day, 23, 59, 59, tzinfo=timezone.utc)
-            months[ek] = expiry_dt
-        except Exception:
-            continue
-    # pick the earliest expiry_dt >= now, otherwise the latest available
-    future = sorted([(dt, ek) for ek, dt in months.items() if dt >= now], key=lambda x: x[0])
-    if future:
-        return future[0][1]
-    if months:
-        # fallback to most recent past expiry
-        past = sorted([(dt, ek) for ek, dt in months.items()], key=lambda x: x[0])
-        return past[-1][1]
-    # if no parsed expiries, prefer UNKNOWN if present
-    return "UNKNOWN" if "UNKNOWN" in candidate_exps else None
-
-
-def main():
-    from kiteconnect import KiteConnect  # local import
-    import argparse
-
-    parser = argparse.ArgumentParser(description="Fetch monthly option chains for underlyings")
-    parser.add_argument("-u", "--underlying", help="Single underlying (overrides get_symbols list)")
-    parser.add_argument("-n", "--top-n", type=int, default=50, help="Number of underlyings from get_symbols() to fetch")
-    parser.add_argument("--interval-sleep", type=float, default=0.35, help="Polite sleep between kite calls (seconds)")
-    parser.add_argument("--expiry", help="Expiry key to use (e.g. SEP2025) or 'ALL' to fetch all (non-interactive)")
-    args = parser.parse_args()
-
-    SESSION_PATH = os.path.expanduser("~/.kite_session.json")
-    API_KEY = os.getenv("KITE_API_KEY")
-    if not API_KEY or not os.path.exists(SESSION_PATH):
-        logger.error("KITE_API_KEY not set or session missing (~/.kite_session.json)")
-        raise SystemExit(1)
-    try:
-        sd = json.load(open(SESSION_PATH, "r"))
-    except Exception:
-        logger.error("Failed to read session file %s", SESSION_PATH)
-        raise SystemExit(1)
-    token = sd.get("access_token")
-    if not token:
-        logger.error("access_token missing in saved session")
-        raise SystemExit(1)
-
-    kite = KiteConnect(api_key=API_KEY)
-    kite.set_access_token(token)
-    try:
-        kite.profile()
+        with out_path.open("w", encoding="utf8") as fh:
+            json.dump(payload, fh, indent=2, ensure_ascii=False)
+        logger.info("Saved option chain: %s", out_path)
     except Exception as e:
-        logger.exception("Kite authentication failed: %s", e)
-        raise SystemExit(1)
+        logger.error("Failed to write JSON %s: %s", out_path, e)
 
-    inst_map = _build_instrument_map_from_kite(kite, exchanges=["NFO", "NSE", "NSE_INDICES", "BSE"])
-    if not inst_map:
-        logger.error("Instrument map empty; aborting")
-        raise SystemExit(1)
-    inst_map_norm: Dict[str, int] = {}
-    for k, v in inst_map.items():
-        try:
-            ku = str(k).upper()
-            inst_map_norm[ku] = v
-            inst_map_norm["".join(ch for ch in ku if ch.isalnum())] = v
-        except Exception:
-            continue
 
-    if args.underlying:
-        underlyings = [args.underlying.strip().upper()]
-    else:
-        symbol_date = _determine_symbol_date_from_most_active()
-        symbols, _meta = get_symbols(symbol_date, top_n=args.top_n)
-        underlyings = [str(s).upper() for s in symbols]
-
-    if not underlyings:
-        logger.info("No underlyings to process")
+# ----------------------
+# Main flow
+# ----------------------
+def main(api_key: Optional[str] = None,
+         access_token: Optional[str] = None,
+         out_base: Optional[Path] = None,
+         top_n: int = 50):
+    if KiteConnect is None:
+        logger.error("kiteconnect not installed. Install via: pip install kiteconnect")
         return
 
-    out_base = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "results", "kite", "OptionChainJSON"))
-    os.makedirs(out_base, exist_ok=True)
+    api_key = api_key or os.environ.get("KITE_API_KEY")
+    access_token = access_token or os.environ.get("KITE_ACCESS_TOKEN")
+    if not api_key or not access_token:
+        logger.error("API key and access token required (args or env KITE_API_KEY / KITE_ACCESS_TOKEN)")
+        return
 
-    for u in underlyings:
+    kite = KiteConnect(api_key=api_key)
+    try:
+        kite.set_access_token(access_token)
+    except Exception as e:
+        logger.error("Failed to set access token: %s", e)
+        return
+
+    symbols = discover_symbols(top_n=top_n)
+    if not symbols:
+        logger.error("No symbols discovered; aborting")
+        return
+
+    instruments = instruments_nfo(kite)
+    if not instruments:
+        logger.error("Failed to fetch NFO instruments; aborting")
+        return
+
+    now = datetime.now(timezone.utc)
+    last_tuesday_date = last_weekday_of_month(now.year, now.month, weekday=1).date()
+
+    out_base = out_base or (Path(__file__).resolve().parents[1] / "OptionChainJSON_Kite")
+    out_base = out_base.resolve()
+    safe_mkdir(out_base)
+
+    logger.info("Downloading option chains for %d symbols; saving to %s", len(symbols), out_base)
+    for sym in symbols:
         try:
-            logger.info("Processing underlying: %s", u)
-            expiry_chains = _group_option_tokens_by_expiry(inst_map_norm, u)
-            if not expiry_chains:
-                logger.info("No option instruments found for %s; skipping.", u)
+            logger.info("Processing %s", sym)
+            grouped = group_option_chain_by_expiry(instruments, sym)
+            if not grouped:
+                logger.debug("No option instruments for %s", sym)
                 continue
 
-            candidate_exps = [ek for ek in expiry_chains.keys()]
-            if not candidate_exps:
-                logger.info("No expiries found for %s; skipping.", u)
-                continue
-
-            # automatically select month-end expiry (no user input)
-            if args.expiry and args.expiry.strip().upper() != "ALL":
-                chosen_expiry = args.expiry.strip().upper() if args.expiry.strip().upper() in candidate_exps else None
-                if not chosen_expiry:
-                    logger.warning("Requested expiry %s not found for %s; falling back to automatic selection", args.expiry, u)
-            elif args.expiry and args.expiry.strip().upper() == "ALL":
-                expiries_to_fetch = candidate_exps
-                logger.info("Fetching ALL expiries for %s (count=%d)", u, len(expiries_to_fetch))
-                # iterate below
-                chosen_expiry = None
-            else:
-                chosen_expiry = _select_month_end_expiry(candidate_exps)
-                logger.info("Auto-selected month-end expiry %s for %s", chosen_expiry, u)
-
-            expiries_to_fetch = expiries_to_fetch if 'expiries_to_fetch' in locals() and expiries_to_fetch else ([chosen_expiry] if chosen_expiry else [])
-            if not expiries_to_fetch:
-                logger.info("No expiries selected for %s; skipping.", u)
-                continue
-
-            for chosen_expiry in expiries_to_fetch:
-                logger.info("Fetching expiry %s for %s", chosen_expiry, u)
-                chain = expiry_chains.get(chosen_expiry) or {}
-                if not chain:
-                    logger.info("No strikes for expiry %s for %s; skipping.", chosen_expiry, u)
-                    continue
-
-                tokens = sorted({int(t) for rec in chain.values() for t in (rec.get("CE"), rec.get("PE")) if t})
-                ltp_map: Dict[int, Dict] = {}
-                batch_size = 100
-                for i in range(0, len(tokens), batch_size):
-                    batch = tokens[i: i + batch_size]
+            target_expiry = str(last_tuesday_date.isoformat())
+            if target_expiry not in grouped:
+                # pick any expiry in same month/year
+                for e in grouped.keys():
                     try:
-                        ltp_map.update(_map_ltp_by_token(kite, batch))
-                    except Exception as e:
-                        logger.debug("ltp batch failed for %s %s: %s", u, chosen_expiry, e)
-                    time.sleep(args.interval_sleep)
+                        d = datetime.fromisoformat(e).date()
+                        if d.year == now.year and d.month == now.month:
+                            target_expiry = e
+                            break
+                    except Exception:
+                        continue
+            if target_expiry not in grouped:
+                logger.warning("[%s] no suitable expiry found for current month; skipping", sym)
+                continue
 
-                out_dir = os.path.join(out_base, u, chosen_expiry)
-                save_chain(out_dir, u, chosen_expiry, chain, ltp_map)
-                time.sleep(args.interval_sleep)
+            chain = grouped[target_expiry]
+            tokens: List[int] = []
+            for st, rec in chain.items():
+                for ot in ("CE", "PE"):
+                    v = rec.get(ot)
+                    if v and v.get("instrument_token"):
+                        try:
+                            tokens.append(int(v["instrument_token"]))
+                        except Exception:
+                            continue
+            tokens = sorted(set(tokens))
+            ltp_map = fetch_ltp_map(kite, tokens, chunk_size=100, pause=0.25)
+            save_option_chain_json(out_base, sym, target_expiry, chain, ltp_map)
+            time.sleep(0.15)
         except Exception as e:
-            logger.exception("Failed for %s: %s", u, e)
-            time.sleep(args.interval_sleep)
+            logger.exception("Failed symbol %s: %s", sym, e)
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Download option chains from Kite and save JSON files")
+    parser.add_argument("--api-key", help="Kite API key (or set KITE_API_KEY)")
+    parser.add_argument("--access-token", help="Kite access token (or set KITE_ACCESS_TOKEN)")
+    parser.add_argument("--out-dir", help="Output folder (defaults to trading_app/OptionChainJSON_Kite)")
+    parser.add_argument("--top-n", type=int, default=50, help="Number of symbols to fetch from helper")
+    args = parser.parse_args()
+
+    out_dir = Path(args.out_dir) if args.out_dir else None
+    main(api_key=args.api_key, access_token=args.access_token, out_base=out_dir, top_n=args.top_n)
