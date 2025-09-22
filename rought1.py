@@ -14,8 +14,8 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
-symbols = get_symbols(get_dates_from_most_active_files()[-1],top_n=17)[0]
-prev_symbols = get_symbols(get_dates_from_most_active_files()[-2],top_n=17)[0]
+symbols = get_symbols(get_dates_from_most_active_files()[-1],top_n=50)[0]
+prev_symbols = get_symbols(get_dates_from_most_active_files()[-2],top_n=50)[0]
 new_symbols = set(symbols) - set(prev_symbols)
 symbol_excluded = set(prev_symbols) - set(symbols)
 
