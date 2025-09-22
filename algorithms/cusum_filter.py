@@ -11,6 +11,7 @@ import os
 import sys
 from pathlib import Path
 from typing import Iterable, Optional, Tuple, List
+from datetime import datetime
 
 import logging
 import math
@@ -167,6 +168,19 @@ def plot_cusum_events_all(symbols: Iterable[str],
     pdf_path = os.path.join(results_dir, "cusum_events_close_charts.pdf")
 
     with PdfPages(pdf_path) as pdf:
+        # add a cover/title page with report date
+        try:
+            cover = plt.figure(figsize=(11.69, 8.27))  # A4 landscape
+            cover_text = f"CUSUM Events Report\nGenerated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}"
+            cover.text(0.5, 0.6, "CUSUM Events Report", ha="center", va="center", fontsize=20, weight="bold")
+            cover.text(0.5, 0.45, f"Generated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}", ha="center", va="center", fontsize=10)
+            cover.text(0.5, 0.3, f"Engineered dir: {engineered_dir}\nResults dir: {results_dir}", ha="center", va="center", fontsize=9)
+            plt.axis("off")
+            pdf.savefig(cover)
+            plt.close(cover)
+        except Exception:
+            # non-fatal; continue generating pages
+            logger.debug("Failed to add cover page to PDF", exc_info=True)
         for symbol in symbols:
             try:
                 file_path = find_dollar_imbalance_file(symbol, engineered_dir, results_dir, underlying_dir)
@@ -260,6 +274,16 @@ def plot_garch_cusum_events_all(symbols: Iterable[str],
     pdf_path = os.path.join(results_dir, "cusum_events_garch_vol_charts.pdf")
 
     with PdfPages(pdf_path) as pdf:
+        # add a cover/title page with report date
+        try:
+            cover = plt.figure(figsize=(11.69, 8.27))
+            cover.text(0.5, 0.6, "CUSUM GARCH Volatility Report", ha="center", va="center", fontsize=18, weight="bold")
+            cover.text(0.5, 0.45, f"Generated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}", ha="center", va="center", fontsize=10)
+            plt.axis("off")
+            pdf.savefig(cover)
+            plt.close(cover)
+        except Exception:
+            logger.debug("Failed to add GARCH cover page", exc_info=True)
         for symbol in symbols:
             try:
                 file_path = os.path.join(engineered_dir, f"{symbol}_1d_features.json")
