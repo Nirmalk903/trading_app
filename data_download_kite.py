@@ -447,27 +447,13 @@ if __name__ == "__main__":
         raise SystemExit(1)
 
     # pick date from most-active files if available, otherwise try latest file or today
-    try:
-        dates = get_dates_from_most_active_files() or []
-    except Exception:
-        dates = []
+    
+    dates = get_dates_from_most_active_files() or []
+    symbols, meta = get_symbols(dates[-1] if dates else None, top_n=50)
+    
 
-    if dates:
-        symbol_date = dates[-1]
-    else:
-        repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-        pattern = os.path.join(repo_root, "**", "*MOST-ACTIVE*UNDERLYING*.csv")
-        cand = glob.glob(pattern, recursive=True)
-        if cand:
-            latest_file = max(cand, key=os.path.getmtime)
-            logger.info("Using latest most-active file: %s", latest_file)
-            symbol_date = datetime.fromtimestamp(os.path.getmtime(latest_file))
-        else:
-            logger.info("No most-active file found; falling back to today for get_symbols()")
-            symbol_date = datetime.utcnow()
-
-    symbols, meta = get_symbols(symbol_date, top_n=50)
-    logger.info("get_symbols returned %d symbols (date=%s)", len(symbols), symbol_date)
+    symbols, meta = get_symbols(sd_arg, top_n=50)
+    logger.info("get_symbols returned %d symbols (date=%s)", len(symbols), sd_arg)
     if not symbols:
         logger.error("No symbols returned by get_symbols; nothing to fetch")
         raise SystemExit(1)
