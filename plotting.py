@@ -3,6 +3,7 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 from datetime import datetime as dt_time
+from data_download_vbt import get_dates_from_most_active_files
 
 
 
@@ -13,6 +14,7 @@ def plot_garch_vs_rsi(symbols, data_dir='./Engineered_data'):
     Highlights NIFTY and BANKNIFTY markers in different colors.
     """
     dt = dt_time.now().strftime('%Y-%m-%d')
+    dt1 = get_dates_from_most_active_files()[-1]
     image_dir='./Images'
     if not os.path.exists(image_dir):
         print(f"Creating directory: {image_dir}")   
@@ -65,7 +67,7 @@ def plot_garch_vs_rsi(symbols, data_dir='./Engineered_data'):
     plt.title('GARCH Vol Percentile vs RSI')
     plt.legend()
     plt.grid(True)
-    save_path = os.path.join(image_dir, f'garch_vs_rsi_{dt}.png')
+    save_path = os.path.join(image_dir, f'garch_vs_rsi_{dt1}.png')
     plt.savefig(save_path)
     print(f"Saving plot to {save_path}")
     plt.close()
