@@ -67,7 +67,7 @@ def plot_garch_vs_rsi(symbols, data_dir='./Engineered_data'):
     plt.title('GARCH Vol Percentile vs RSI')
     plt.legend()
     plt.grid(True)
-    save_path = os.path.join(image_dir, f'garch_vs_rsi_{dt1}.png')
+    save_path = os.path.join(image_dir, f'garch_vs_rsi_{dt}.png')
     plt.savefig(save_path)
     print(f"Saving plot to {save_path}")
     plt.close()
